@@ -1,0 +1,84 @@
+# Xcode
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+.idea/
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Build
+build/
+DerivedData/
+*.build/
+*.framework
+
+# Dependencies
+Pods/
+Carthage/Build/
+.swiftpm/
+
+# Archives
+*.xcarchive
+*.ipa
+
+# Certificates
+*.p12
+*.cer
+*.mobileprovision
+Certificates/
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Swift Package Manager
+.build/
+Package.pins
+Package.resolved
+.swiftpm/xcode/
+xcuserdata/
+
+# CocoaPods
+Podfile.lock
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Data files - 卡片数据应该运行时下载，不应提交到仓库
+cards.json
+cards_md5.txt
+
+# Test data
+ygocdbTests/cards.json
+
+# User data
+*.sqlite
+*.realm
+
+# Environment
+.env
+.env.local
