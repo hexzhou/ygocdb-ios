@@ -141,10 +141,10 @@ enum CardRace: Int, CaseIterable {
     case reptile      = 0x80000   // 爬虫
     case psychic      = 0x100000  // 念动力
     case divine       = 0x200000  // 幻神兽
-    case wyrm         = 0x400000  // 幻龙
-    case cyberse      = 0x800000  // 电子界
-    case illusion     = 0x1000000 // 幻想魔
-    case creatorGod   = 0x2000000 // 创造神
+    case creatorGod   = 0x400000  // 创造神
+    case wyrm         = 0x800000  // 幻龙
+    case cyberse      = 0x1000000 // 电子界
+    case illusion     = 0x2000000 // 幻想魔
     
     /// 显示名称
     var displayName: String {
@@ -171,10 +171,10 @@ enum CardRace: Int, CaseIterable {
         case .reptile:      return "爬虫"
         case .psychic:      return "念动力"
         case .divine:       return "幻神兽"
+        case .creatorGod:   return "创造神"
         case .wyrm:         return "幻龙"
         case .cyberse:      return "电子界"
         case .illusion:     return "幻想魔"
-        case .creatorGod:   return "创造神"
         }
     }
     
