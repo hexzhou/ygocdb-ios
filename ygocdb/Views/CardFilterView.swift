@@ -82,6 +82,25 @@ class CardFilter: ObservableObject {
         selectedAttributes = []
     }
     
+    /// 清除怪兽筛选条件
+    func clearMonsterFilters() {
+        selectedMonsterCategories = []
+        selectedMonsterAbilities = []
+        selectedLevels = []
+        selectedRaces = []
+        selectedAttributes = []
+    }
+    
+    /// 清除魔法筛选条件
+    func clearSpellFilters() {
+        selectedSpellTypes = []
+    }
+    
+    /// 清除陷阱筛选条件
+    func clearTrapFilters() {
+        selectedTrapTypes = []
+    }
+    
     /// 应用筛选到卡片列表
     func apply(to cards: [Card]) -> [Card] {
         // 如果没有任何筛选条件，直接返回原列表
@@ -141,7 +160,12 @@ class CardFilter: ObservableObject {
                 if hasSpellFilters {
                     // 魔法子类型筛选
                     let hasMatchingType = selectedSpellTypes.contains { subType in
-                        cardType.contains(subType)
+                        if subType.rawValue == 0 {
+                            // 通常魔法：不包含任何子类型标志
+                            let subTypeFlags: CardType = [.quickPlay, .continuous, .equip, .field, .ritual]
+                            return !cardType.contains(subTypeFlags) && cardType.intersection(subTypeFlags).isEmpty
+                        }
+                        return cardType.contains(subType)
                     }
                     return hasMatchingType
                 } else {
@@ -153,7 +177,12 @@ class CardFilter: ObservableObject {
                 if hasTrapFilters {
                     // 陷阱子类型筛选
                     let hasMatchingType = selectedTrapTypes.contains { subType in
-                        cardType.contains(subType)
+                        if subType.rawValue == 0 {
+                            // 通常陷阱：不包含任何子类型标志
+                            let subTypeFlags: CardType = [.continuous, .counter]
+                            return cardType.intersection(subTypeFlags).isEmpty
+                        }
+                        return cardType.contains(subType)
                     }
                     return hasMatchingType
                 } else {
@@ -230,27 +259,27 @@ struct MonsterFilterContent: View {
         VStack(alignment: .leading, spacing: 20) {
             // 种类
             FilterSectionView(title: "种类") {
-                MonsterCategorySection(selectedCategories: $filter.selectedMonsterCategories)
+                MonsterCategorySection(filter: filter)
             }
             
             // 能力
             FilterSectionView(title: "能力") {
-                MonsterAbilitySection(selectedAbilities: $filter.selectedMonsterAbilities)
+                MonsterAbilitySection(filter: filter)
             }
             
             // 等级/阶级/Link值
             FilterSectionView(title: "等级/阶级/Link值") {
-                LevelFilterSection(selectedLevels: $filter.selectedLevels)
+                LevelFilterSection(filter: filter)
             }
             
             // 种族
             FilterSectionView(title: "种族") {
-                RaceFilterSection(selectedRaces: $filter.selectedRaces)
+                RaceFilterSection(filter: filter)
             }
             
             // 属性
             FilterSectionView(title: "属性") {
-                AttributeFilterSection(selectedAttributes: $filter.selectedAttributes)
+                AttributeFilterSection(filter: filter)
             }
         }
     }
@@ -258,7 +287,7 @@ struct MonsterFilterContent: View {
 
 /// 怪兽种类筛选区（通常/效果/融合/仪式/同调/超量/链接）
 struct MonsterCategorySection: View {
-    @Binding var selectedCategories: Set<CardType>
+    @ObservedObject var filter: CardFilter
     
     private let categories: [(String, CardType)] = [
         ("通常", .normal),
@@ -280,12 +309,16 @@ struct MonsterCategorySection: View {
             ForEach(categories, id: \.0) { name, type in
                 FilterChip(
                     title: name,
-                    isSelected: selectedCategories.contains(type)
+                    isSelected: filter.selectedMonsterCategories.contains(type)
                 ) {
-                    if selectedCategories.contains(type) {
-                        selectedCategories.remove(type)
+                    // 清除魔法和陷阱筛选
+                    filter.clearSpellFilters()
+                    filter.clearTrapFilters()
+                    
+                    if filter.selectedMonsterCategories.contains(type) {
+                        filter.selectedMonsterCategories.remove(type)
                     } else {
-                        selectedCategories.insert(type)
+                        filter.selectedMonsterCategories.insert(type)
                     }
                 }
             }
@@ -296,7 +329,7 @@ struct MonsterCategorySection: View {
 
 /// 怪兽能力筛选区（灵摆/调整/反转/卡通/灵魂/同盟/二重）
 struct MonsterAbilitySection: View {
-    @Binding var selectedAbilities: Set<CardType>
+    @ObservedObject var filter: CardFilter
     
     private let abilities: [(String, CardType)] = [
         ("灵摆", .pendulum),
@@ -318,12 +351,16 @@ struct MonsterAbilitySection: View {
             ForEach(abilities, id: \.0) { name, type in
                 FilterChip(
                     title: name,
-                    isSelected: selectedAbilities.contains(type)
+                    isSelected: filter.selectedMonsterAbilities.contains(type)
                 ) {
-                    if selectedAbilities.contains(type) {
-                        selectedAbilities.remove(type)
+                    // 清除魔法和陷阱筛选
+                    filter.clearSpellFilters()
+                    filter.clearTrapFilters()
+                    
+                    if filter.selectedMonsterAbilities.contains(type) {
+                        filter.selectedMonsterAbilities.remove(type)
                     } else {
-                        selectedAbilities.insert(type)
+                        filter.selectedMonsterAbilities.insert(type)
                     }
                 }
             }
@@ -334,7 +371,7 @@ struct MonsterAbilitySection: View {
 
 /// 等级/阶级/Link值筛选区
 struct LevelFilterSection: View {
-    @Binding var selectedLevels: Set<Int>
+    @ObservedObject var filter: CardFilter
     
     var body: some View {
         LazyVGrid(columns: [
@@ -348,12 +385,16 @@ struct LevelFilterSection: View {
             ForEach(1...12, id: \.self) { level in
                 FilterChip(
                     title: "\(level)",
-                    isSelected: selectedLevels.contains(level)
+                    isSelected: filter.selectedLevels.contains(level)
                 ) {
-                    if selectedLevels.contains(level) {
-                        selectedLevels.remove(level)
+                    // 清除魔法和陷阱筛选
+                    filter.clearSpellFilters()
+                    filter.clearTrapFilters()
+                    
+                    if filter.selectedLevels.contains(level) {
+                        filter.selectedLevels.remove(level)
                     } else {
-                        selectedLevels.insert(level)
+                        filter.selectedLevels.insert(level)
                     }
                 }
             }
@@ -387,6 +428,10 @@ struct SpellFilterContent: View {
                         title: name,
                         isSelected: filter.selectedSpellTypes.contains(type)
                     ) {
+                        // 清除怪兽和陷阱筛选
+                        filter.clearMonsterFilters()
+                        filter.clearTrapFilters()
+                        
                         if filter.selectedSpellTypes.contains(type) {
                             filter.selectedSpellTypes.remove(type)
                         } else {
@@ -422,6 +467,10 @@ struct TrapFilterContent: View {
                         title: name,
                         isSelected: filter.selectedTrapTypes.contains(type)
                     ) {
+                        // 清除怪兽和魔法筛选
+                        filter.clearMonsterFilters()
+                        filter.clearSpellFilters()
+                        
                         if filter.selectedTrapTypes.contains(type) {
                             filter.selectedTrapTypes.remove(type)
                         } else {
@@ -453,7 +502,7 @@ struct FilterSectionView<Content: View>: View {
 
 /// 种族筛选区
 struct RaceFilterSection: View {
-    @Binding var selectedRaces: Set<CardRace>
+    @ObservedObject var filter: CardFilter
     
     var body: some View {
         LazyVGrid(columns: [
@@ -464,12 +513,16 @@ struct RaceFilterSection: View {
             ForEach(CardRace.allCases, id: \.self) { race in
                 FilterChip(
                     title: race.displayName,
-                    isSelected: selectedRaces.contains(race)
+                    isSelected: filter.selectedRaces.contains(race)
                 ) {
-                    if selectedRaces.contains(race) {
-                        selectedRaces.remove(race)
+                    // 清除魔法和陷阱筛选
+                    filter.clearSpellFilters()
+                    filter.clearTrapFilters()
+                    
+                    if filter.selectedRaces.contains(race) {
+                        filter.selectedRaces.remove(race)
                     } else {
-                        selectedRaces.insert(race)
+                        filter.selectedRaces.insert(race)
                     }
                 }
             }
@@ -480,7 +533,7 @@ struct RaceFilterSection: View {
 
 /// 属性筛选区
 struct AttributeFilterSection: View {
-    @Binding var selectedAttributes: Set<CardAttribute>
+    @ObservedObject var filter: CardFilter
     
     var body: some View {
         LazyVGrid(columns: [
@@ -492,12 +545,16 @@ struct AttributeFilterSection: View {
             ForEach(CardAttribute.allCases, id: \.self) { attr in
                 FilterChip(
                     title: attr.displayName,
-                    isSelected: selectedAttributes.contains(attr)
+                    isSelected: filter.selectedAttributes.contains(attr)
                 ) {
-                    if selectedAttributes.contains(attr) {
-                        selectedAttributes.remove(attr)
+                    // 清除魔法和陷阱筛选
+                    filter.clearSpellFilters()
+                    filter.clearTrapFilters()
+                    
+                    if filter.selectedAttributes.contains(attr) {
+                        filter.selectedAttributes.remove(attr)
                     } else {
-                        selectedAttributes.insert(attr)
+                        filter.selectedAttributes.insert(attr)
                     }
                 }
             }
