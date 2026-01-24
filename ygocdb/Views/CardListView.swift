@@ -12,7 +12,8 @@ struct CardListView: View {
     let cards: [Card]
     @ObservedObject var settings = AppSettings.shared
     @State private var toastMessage: String?
-    
+    @State private var scrollToTopTask: Task<Void, Never>?  // 滚动任务
+
     var body: some View {
         ZStack {
             ScrollViewReader { proxy in
@@ -31,15 +32,23 @@ struct CardListView: View {
                 }
                 .listStyle(PlainListStyle())
                 .onChange(of: cards.first?.id) { _ in
-                    // 当卡片列表变化时滚动到顶部
-                    if let firstCard = cards.first {
-                        withAnimation {
+                    // 防抖：取消之前的滚动任务
+                    scrollToTopTask?.cancel()
+
+                    // 当卡片列表变化时，延迟滚动到顶部（防抖 300ms）
+                    scrollToTopTask = Task {
+                        // 等待 300ms，避免频繁滚动
+                        try? await Task.sleep(nanoseconds: 300_000_000)
+
+                        // 检查任务是否被取消
+                        if !Task.isCancelled, let firstCard = cards.first {
+                            // 使用无动画滚动，减少性能开销
                             proxy.scrollTo(firstCard.id, anchor: .top)
                         }
                     }
                 }
             }
-            
+
             // Toast 提示
             if let message = toastMessage {
                 VStack {

@@ -91,10 +91,10 @@ class CardSearchViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    /// 执行搜索
+    /// 执行搜索（优化版本：后台线程搜索）
     private func performSearch(query: String) {
         searchTask?.cancel()
-        
+
         guard !query.isEmpty else {
             // 延迟清空搜索结果，减少取消搜索时的残影
             Task { @MainActor in
@@ -106,18 +106,19 @@ class CardSearchViewModel: ObservableObject {
             }
             return
         }
-        
+
         isSearching = true
-        
+
         searchTask = Task {
-            let results = repository.search(query)
-            
+            // 异步后台搜索，不阻塞主线程
+            let results = await repository.search(query)
+
             // 无论是否取消，都需要重置 isSearching 状态
             if Task.isCancelled {
                 await MainActor.run { isSearching = false }
                 return
             }
-            
+
             searchResults = results
             isSearching = false
         }

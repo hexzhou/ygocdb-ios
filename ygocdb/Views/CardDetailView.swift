@@ -24,7 +24,7 @@ struct CardDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // 卡图（带缓存）
+                // 卡图（带缓存和重试机制）
                 CachedAsyncImage(
                     url: settings.getImageURL(for: card, size: settings.detailImageQuality.size),
                     cacheKey: "\(settings.cardImageLanguage.rawValue)-\(card.id)-\(settings.detailImageQuality.rawValue)"

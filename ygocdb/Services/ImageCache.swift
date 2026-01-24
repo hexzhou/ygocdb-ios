@@ -12,24 +12,29 @@ import os.log
 /// 图片缓存管理器
 actor ImageCache {
     static let shared = ImageCache()
-    
+
     private let fileManager = FileManager.default
     private let cacheDirectory: URL
     private let memoryCache = NSCache<NSString, UIImage>()
     private let logger = Logger(subsystem: "com.ygocdb", category: "ImageCache")
     private let session: URLSession
-    
+
+    /// 并发下载任务管理器（限制同时下载数量）
+    private var ongoingDownloads: [URL: Task<UIImage, Error>] = [:]
+    private let maxConcurrentDownloads = 6
+    private var activeDownloadCount = 0
+
     private init() {
         // 使用共享的网络配置
         self.session = NetworkConfig.shared
-        
+
         // 获取缓存目录
         let cachesDirectory = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
         cacheDirectory = cachesDirectory.appendingPathComponent("CardImages", isDirectory: true)
-        
+
         // 创建缓存目录
         try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
-        
+
         // 设置内存缓存限制
         memoryCache.countLimit = 200
         memoryCache.totalCostLimit = 100 * 1024 * 1024 // 100MB
@@ -117,15 +122,15 @@ actor ImageCache {
         return nil
     }
     
-    /// 下载并缓存图片
+    /// 下载并缓存图片（带并发控制）
     func downloadAndCache(from url: URL) async throws -> UIImage {
         let cacheKey = cacheFileName(for: url) as NSString
-        
+
         // 先检查内存缓存
         if let cachedImage = memoryCache.object(forKey: cacheKey) {
             return cachedImage
         }
-        
+
         // 检查磁盘缓存
         let fileURL = cacheFileURL(for: url)
         if fileManager.fileExists(atPath: fileURL.path),
@@ -134,24 +139,68 @@ actor ImageCache {
             memoryCache.setObject(image, forKey: cacheKey, cost: data.count)
             return image
         }
-        
-        // 下载图片
-        let (data, response) = try await session.data(from: url)
-        
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200,
-              let image = UIImage(data: data) else {
-            logger.error("❌ 下载失败: \(cacheKey as String)")
-            throw ImageCacheError.downloadFailed
+
+        // 检查是否已有正在进行的下载任务
+        if let existingTask = ongoingDownloads[url] {
+            return try await existingTask.value
         }
-        
-        // 保存到磁盘
-        try? data.write(to: fileURL)
-        
-        // 存入内存缓存
-        memoryCache.setObject(image, forKey: cacheKey, cost: data.count)
-        
-        return image
+
+        // 创建新的下载任务
+        let downloadTask = Task<UIImage, Error> {
+            // 等待直到有可用的下载槽位
+            while activeDownloadCount >= maxConcurrentDownloads {
+                try await Task.sleep(nanoseconds: 50_000_000) // 等待50ms
+            }
+
+            activeDownloadCount += 1
+
+            // 确保无论成功还是失败都清理资源
+            defer {
+                Task {
+                    await self.cleanupDownload(url: url)
+                }
+            }
+
+            do {
+                // 下载图片
+                let (data, response) = try await session.data(from: url)
+
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    logger.error("❌ 下载失败: \(cacheKey as String) - 无效响应")
+                    throw ImageCacheError.downloadFailed
+                }
+
+                guard httpResponse.statusCode == 200 else {
+                    logger.error("❌ 下载失败: \(cacheKey as String) - HTTP \(httpResponse.statusCode)")
+                    throw ImageCacheError.downloadFailed
+                }
+
+                guard let image = UIImage(data: data) else {
+                    logger.error("❌ 下载失败: \(cacheKey as String) - 图片解码失败")
+                    throw ImageCacheError.downloadFailed
+                }
+
+                // 保存到磁盘
+                try? data.write(to: fileURL)
+
+                // 存入内存缓存
+                memoryCache.setObject(image, forKey: cacheKey, cost: data.count)
+
+                return image
+            } catch {
+                logger.error("❌ 下载异常: \(cacheKey as String) - \(error.localizedDescription)")
+                throw error
+            }
+        }
+
+        ongoingDownloads[url] = downloadTask
+        return try await downloadTask.value
+    }
+
+    /// 清理下载任务（私有辅助方法）
+    private func cleanupDownload(url: URL) {
+        activeDownloadCount -= 1
+        ongoingDownloads.removeValue(forKey: url)
     }
     
     /// 清除所有缓存

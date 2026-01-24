@@ -10,16 +10,14 @@ import SwiftUI
 /// 卡片列表项视图
 struct CardRowView: View {
     let card: Card
-    
-    // 直接读取设置，不需要在 row 级别订阅变化
-    private var settings: AppSettings { AppSettings.shared }
-    
+    @ObservedObject private var settings = AppSettings.shared
+
     var body: some View {
         switch settings.cardListStyle {
         case .compact:
-            CompactCardRow(card: card)
+            CompactCardRow(card: card, settings: settings)
         case .detailed:
-            DetailedCardRow(card: card)
+            DetailedCardRow(card: card, settings: settings)
         }
     }
 }
@@ -27,9 +25,8 @@ struct CardRowView: View {
 /// 简洁样式
 struct CompactCardRow: View {
     let card: Card
-    
-    private var settings: AppSettings { AppSettings.shared }
-    
+    let settings: AppSettings
+
     var body: some View {
         HStack(spacing: 12) {
             // 卡图缩略图
@@ -49,20 +46,20 @@ struct CompactCardRow: View {
             }
             .frame(width: 60, height: 87)
             .clipShape(RoundedRectangle(cornerRadius: 4))
-            
+
             // 卡片信息
             VStack(alignment: .leading, spacing: 4) {
                 Text(settings.getDisplayName(for: card))
                     .font(.headline)
                     .lineLimit(1)
-                
+
                 // 卡片信息（类型、星级、攻防等）
                 Text(card.typesDisplay)
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .lineLimit(2)
             }
-            
+
             Spacer()
         }
         .padding(.vertical, 4)
@@ -72,9 +69,8 @@ struct CompactCardRow: View {
 /// 详细样式
 struct DetailedCardRow: View {
     let card: Card
-    
-    private var settings: AppSettings { AppSettings.shared }
-    
+    let settings: AppSettings
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // 第一行：卡图、卡片名称、卡密
@@ -96,26 +92,26 @@ struct DetailedCardRow: View {
                 }
                 .frame(width: 44, height: 64)
                 .clipShape(RoundedRectangle(cornerRadius: 3))
-                
+
                 // 卡片名称
                 Text(settings.getDisplayName(for: card))
                     .font(.headline)
                     .lineLimit(1)
-                
+
                 Spacer()
-                
+
                 // 卡密
                 Text(String(format: "%08d", card.id))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .monospacedDigit()
             }
-            
+
             // 第二行：卡片信息（类型、星级、攻防等）
             Text(card.typesDisplay)
                 .font(.caption)
                 .foregroundColor(.blue)
-            
+
             // 灵摆效果（如果有）
             if !card.pdescDisplay.isEmpty {
                 Text("【灵摆效果】\(card.pdescDisplay)")
@@ -124,7 +120,7 @@ struct DetailedCardRow: View {
                     .lineLimit(nil)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            
+
             // 卡片效果
             Text(card.descDisplay)
                 .font(.subheadline)
