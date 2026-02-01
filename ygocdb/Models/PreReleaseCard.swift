@@ -58,4 +58,11 @@ struct PreReleaseCard: Codable, Identifiable {
     var imageURL: URL? {
         URL(string: picUrl)
     }
+
+    /// 是否为额外卡组卡片（融合、同调、超量、链接）
+    var isExtraDeckCard: Bool {
+        let keywords = ["融合", "同调", "超量", "连接", "链接"]
+        let lowerOverall = overallString.lowercased()
+        return keywords.contains { lowerOverall.contains($0) }
+    }
 }

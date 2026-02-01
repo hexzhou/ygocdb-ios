@@ -64,6 +64,7 @@ class CardRepository: ObservableObject {
 
     @Published private(set) var cards: [Card] = []
     @Published private(set) var isLoaded: Bool = false
+    private var cardById: [Int: Card] = [:]
 
     private let fileManager = FileManager.default
     private let cardsFileName = "cards.json"
@@ -92,6 +93,7 @@ class CardRepository: ObservableObject {
         guard fileManager.fileExists(atPath: url.path) else {
             cards = []
             searchIndexes = []
+            cardById = [:]
             isLoaded = false
             return
         }
@@ -104,6 +106,13 @@ class CardRepository: ObservableObject {
 
         // 构建搜索索引（预计算小写字符串）
         searchIndexes = cards.map { CardSearchIndex(from: $0) }
+        var dict: [Int: Card] = [:]
+        dict.reserveCapacity(cards.count)
+        for card in cards where card.id > 0 {
+            // 数据源可能存在重复 id（例如 id=0 或异常条目）；这里用“后者覆盖前者”避免崩溃。
+            dict[card.id] = card
+        }
+        cardById = dict
 
         isLoaded = true
     }
@@ -123,6 +132,12 @@ class CardRepository: ObservableObject {
 
         // 构建搜索索引（预计算小写字符串）
         searchIndexes = cards.map { CardSearchIndex(from: $0) }
+        var dict: [Int: Card] = [:]
+        dict.reserveCapacity(cards.count)
+        for card in cards where card.id > 0 {
+            dict[card.id] = card
+        }
+        cardById = dict
 
         isLoaded = true
     }
@@ -153,6 +168,7 @@ class CardRepository: ObservableObject {
 
         cards = []
         searchIndexes = []
+        cardById = [:]
         isLoaded = false
     }
     
@@ -178,7 +194,12 @@ class CardRepository: ObservableObject {
     func getAllCards() -> [Card] {
         return cards
     }
-    
+
+    /// 根据卡片ID获取卡片
+    func getCard(byId cardId: Int) -> Card? {
+        cardById[cardId]
+    }
+
     /// 搜索卡片（优化版本：异步后台搜索，使用预计算的索引）
     func search(_ query: String) async -> [Card] {
         guard !query.isEmpty else {

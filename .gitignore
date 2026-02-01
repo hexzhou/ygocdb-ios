@@ -82,3 +82,7 @@ ygocdbTests/cards.json
 # Environment
 .env
 .env.local
+
+# Tooling
+node_modules/
+.claude/

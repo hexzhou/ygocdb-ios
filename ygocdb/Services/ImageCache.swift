@@ -154,12 +154,8 @@ actor ImageCache {
 
             activeDownloadCount += 1
 
-            // 确保无论成功还是失败都清理资源
-            defer {
-                Task {
-                    await self.cleanupDownload(url: url)
-                }
-            }
+            // 确保无论成功、失败、还是取消都清理资源
+            defer { cleanupDownload(url: url) }
 
             do {
                 // 下载图片
@@ -205,6 +201,13 @@ actor ImageCache {
     
     /// 清除所有缓存
     func clearCache() async {
+        // 取消并清空进行中的下载，避免下载槽位卡死导致一直加载
+        for (_, task) in ongoingDownloads {
+            task.cancel()
+        }
+        ongoingDownloads.removeAll()
+        activeDownloadCount = 0
+
         memoryCache.removeAllObjects()
         try? fileManager.removeItem(at: cacheDirectory)
         try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)

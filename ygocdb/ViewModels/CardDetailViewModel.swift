@@ -49,6 +49,11 @@ class CardDetailViewModel: ObservableObject {
     var hasFAQs: Bool {
         !(cardDetail?.faqs?.isEmpty ?? true)
     }
+
+    /// 是否有补充调整
+    var hasSupplement: Bool {
+        !(cardDetail?.supplement?.cleanText.isEmpty ?? true)
+    }
     
     /// 是否有日版发售信息
     var hasJPPacks: Bool {

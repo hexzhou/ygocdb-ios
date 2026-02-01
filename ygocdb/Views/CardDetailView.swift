@@ -156,6 +156,12 @@ struct CardDetailView: View {
                         .frame(maxWidth: .infinity)
                     }
                     
+                    // 补充调整
+                    if viewModel.hasSupplement, let supplement = viewModel.cardDetail?.supplement {
+                        Divider()
+                        SupplementSection(supplement: supplement)
+                    }
+
                     // FAQ 区域
                     if viewModel.hasFAQs, let faqs = viewModel.cardDetail?.faqs {
                         Divider()
@@ -277,6 +283,78 @@ struct ShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
+/// 补充调整区域视图
+struct SupplementSection: View {
+    let supplement: CardSupplement
+    @State private var showCopiedToast = false
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack {
+                    Image(systemName: "doc.text.fill")
+                        .foregroundColor(.blue)
+                    Text("补充调整")
+                        .font(.headline)
+                    Spacer()
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            if isExpanded {
+                if let date = supplement.date {
+                    Text(date)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+
+                Text(supplement.cleanText)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .textSelection(.enabled)
+
+                HStack(spacing: 12) {
+                    Button {
+                        copySupplement()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: showCopiedToast ? "checkmark" : "doc.on.doc")
+                            Text(showCopiedToast ? "已复制" : "复制")
+                        }
+                        .font(.caption)
+                        .foregroundColor(showCopiedToast ? .green : .blue)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
+
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func copySupplement() {
+        let text = supplement.cleanText
+        UIPasteboard.general.string = text
+
+        withAnimation {
+            showCopiedToast = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation {
+                showCopiedToast = false
+            }
+        }
+    }
+}
+
 /// FAQ 区域视图
 struct FAQSection: View {
     let faqs: [CardQA]
@@ -381,17 +459,19 @@ struct FAQItem: View {
                         .textSelection(.enabled)
                     
                     // 复制按钮
-                    Button {
-                        copyFAQ()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: showCopiedToast ? "checkmark" : "doc.on.doc")
-                            Text(showCopiedToast ? "已复制" : "复制")
+                    HStack(spacing: 12) {
+                        Button {
+                            copyFAQ()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: showCopiedToast ? "checkmark" : "doc.on.doc")
+                                Text(showCopiedToast ? "已复制" : "复制")
+                            }
+                            .font(.caption)
+                            .foregroundColor(showCopiedToast ? .green : .blue)
                         }
-                        .font(.caption)
-                        .foregroundColor(showCopiedToast ? .green : .blue)
+                        .buttonStyle(PlainButtonStyle())
                     }
-                    .buttonStyle(PlainButtonStyle())
                 }
                 .padding(.leading, 20)
             }

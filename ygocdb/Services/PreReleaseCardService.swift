@@ -132,6 +132,16 @@ actor PreReleaseCardService {
         etag = nil
         logger.info("🗑️ 先行卡缓存已清除")
     }
+
+    /// 根据 ID 获取先行卡（从缓存中查找）
+    func getCard(byId cardId: Int) -> PreReleaseCard? {
+        cachedCards?.first(where: { $0.id == cardId })
+    }
+
+    /// 获取缓存的先行卡列表
+    func getCachedCards() -> [PreReleaseCard] {
+        cachedCards ?? []
+    }
 }
 
 /// 先行卡服务错误

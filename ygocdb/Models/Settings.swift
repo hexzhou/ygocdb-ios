@@ -98,9 +98,41 @@ enum CardImageLanguage: String, CaseIterable, Codable {
     
     /// 获取卡图 URL
     func getImageURL(for cardId: Int, size: CardImageSize = .full) -> URL? {
+        // 先行卡判断：ID 大于 99999999 的卡片使用先行卡专用 CDN
+        if cardId > 99999999 {
+            // 先行卡图片 URL，不支持尺寸参数
+            return URL(string: "https://cdntx.moecube.com/ygopro-super-pre/data/pics/\(cardId).jpg")
+        }
+
         let baseURL = "https://cdn.233.momobako.com"
-        let sizeSuffix = size.suffix
+        var sizeSuffix = size.suffix
+        // YGOPRO 图源使用传统的 `!half` 参数（而不是 webp 转码参数）。
+        if self == .ygopro {
+            if case .half = size {
+                sizeSuffix = "!half"
+            }
+        }
         return URL(string: "\(baseURL)/\(cdnPath)/\(cardId).\(imageExtension)\(sizeSuffix)")
+    }
+}
+
+/// 主题模式
+enum AppearanceMode: String, CaseIterable, Identifiable {
+    case system = "跟随系统"
+    case light = "浅色"
+    case dark = "深色"
+
+    var id: String { rawValue }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system:
+            return nil
+        case .light:
+            return .light
+        case .dark:
+            return .dark
+        }
     }
 }
 
@@ -155,6 +187,7 @@ class AppSettings: ObservableObject {
     @AppStorage("cardImageLanguage") var cardImageLanguage: CardImageLanguage = .ygopro
     @AppStorage("cardListStyle") var cardListStyle: CardListStyle = .compact
     @AppStorage("detailImageQuality") var detailImageQuality: DetailImageQuality = .high
+    @AppStorage("appearanceMode") var appearanceMode: AppearanceMode = .system
     
     // 网络和更新设置
     @AppStorage("networkMode") var networkMode: NetworkMode = .online

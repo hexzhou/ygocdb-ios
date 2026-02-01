@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// 设置视图
 struct SettingsView: View {
@@ -15,6 +16,13 @@ struct SettingsView: View {
     @State private var cardDataSize: String = "计算中..."
     @State private var showClearImageCacheAlert = false
     @State private var showClearCardDataAlert = false
+    @State private var showBackupShareSheet = false
+    @State private var showBackupImporter = false
+    @State private var showImportConfirm = false
+    @State private var backupAlertMessage: String?
+    @State private var showBackupAlert = false
+    @State private var backupFileURL: URL?
+    @State private var pendingImportURL: URL?
     @State private var isCheckingForUpdates = false
     @State private var updateCheckResult: String?
     @State private var isDownloading = false
@@ -152,6 +160,20 @@ struct SettingsView: View {
                 } footer: {
                     Text("简洁模式显示缩略图和摘要，详细模式显示完整效果")
                 }
+
+                // 外观
+                Section {
+                    Picker("主题模式", selection: $settings.appearanceMode) {
+                        ForEach(AppearanceMode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                } header: {
+                    Text("外观")
+                } footer: {
+                    Text("浅色为当前主题，可选择深色或跟随系统自动切换")
+                }
                 
                 // 缓存管理
                 Section {
@@ -187,13 +209,38 @@ struct SettingsView: View {
                 } footer: {
                     Text("清除卡片数据后需要重新下载")
                 }
+
+                // 卡组备份
+                Section {
+                    Button {
+                        exportDeckBackup()
+                    } label: {
+                        HStack {
+                            Image(systemName: "square.and.arrow.up")
+                            Text("导出卡组备份")
+                        }
+                    }
+
+                    Button {
+                        showBackupImporter = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "square.and.arrow.down")
+                            Text("导入卡组备份")
+                        }
+                    }
+                } header: {
+                    Text("卡组备份")
+                } footer: {
+                    Text("备份包含卡组详情、概率计算场景、副卡组策略等信息")
+                }
                 
                 // 关于
                 Section("关于") {
                     HStack {
                         Text("版本")
                         Spacer()
-                        Text("1.0.1")
+                        Text("2.0")
                             .foregroundColor(.secondary)
                     }
                     
@@ -244,6 +291,24 @@ struct SettingsView: View {
             } message: {
                 Text("确定要清除所有缓存的卡图吗？")
             }
+            .alert("导入卡组备份", isPresented: $showImportConfirm) {
+                Button("取消", role: .cancel) {
+                    pendingImportURL = nil
+                }
+                Button("合并导入") {
+                    importDeckBackup(mode: .merge)
+                }
+                Button("覆盖导入", role: .destructive) {
+                    importDeckBackup(mode: .replace)
+                }
+            } message: {
+                Text("选择导入方式：合并会保留现有卡组，覆盖会清空当前卡组后导入。")
+            }
+            .alert("提示", isPresented: $showBackupAlert) {
+                Button("确定", role: .cancel) {}
+            } message: {
+                Text(backupAlertMessage ?? "操作完成")
+            }
             .alert("清除卡片数据", isPresented: $showClearCardDataAlert) {
                 Button("取消", role: .cancel) {}
                 Button("清除", role: .destructive) {
@@ -262,7 +327,25 @@ struct SettingsView: View {
             } message: {
                 Text("卡片数据库有新版本可用，是否立即下载更新？")
             }
+            .fileImporter(isPresented: $showBackupImporter, allowedContentTypes: [.json]) { result in
+                switch result {
+                case .success(let url):
+                    pendingImportURL = url
+                    showImportConfirm = true
+                case .failure(let error):
+                    backupAlertMessage = "导入失败：\(error.localizedDescription)"
+                    showBackupAlert = true
+                }
+            }
+            .sheet(isPresented: $showBackupShareSheet) {
+                if let url = backupFileURL {
+                    ShareSheet(items: [url])
+                } else {
+                    Text("备份文件生成失败")
+                }
+            }
         }
+        .preferredColorScheme(settings.appearanceMode.colorScheme)
     }
     
     private func updateSizes() async {
@@ -272,6 +355,35 @@ struct SettingsView: View {
     
     private func updateCardDataSize() {
         cardDataSize = CardRepository.shared.formattedDataSize()
+    }
+
+    private func exportDeckBackup() {
+        do {
+            backupFileURL = try DeckService.shared.exportBackup()
+            showBackupShareSheet = true
+        } catch {
+            backupAlertMessage = "导出失败：\(error.localizedDescription)"
+            showBackupAlert = true
+        }
+    }
+
+    private func importDeckBackup(mode: DeckBackupImportMode) {
+        guard let url = pendingImportURL else { return }
+        let accessGranted = url.startAccessingSecurityScopedResource()
+        defer {
+            if accessGranted {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+        do {
+            let summary = try DeckService.shared.importBackup(from: url, mode: mode)
+            backupAlertMessage = "已导入 \(summary.total) 个卡组（新增 \(summary.added) 个，覆盖 \(summary.replaced) 个）"
+            showBackupAlert = true
+        } catch {
+            backupAlertMessage = "导入失败：\(error.localizedDescription)"
+            showBackupAlert = true
+        }
+        pendingImportURL = nil
     }
     
     private func checkForUpdates() async {

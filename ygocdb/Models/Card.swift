@@ -51,19 +51,38 @@ struct Card: Codable, Identifiable {
         cnName ?? scName ?? jpName ?? enName ?? "未知卡片"
     }
     
+    /// 是否为先行卡（ID 大于 99999999）
+    var isPreReleaseCard: Bool {
+        id > 99999999
+    }
+
+    /// 先行卡图片基础 URL
+    private var preReleaseImageURL: URL? {
+        URL(string: "https://cdntx.moecube.com/ygopro-super-pre/data/pics/\(id).jpg")
+    }
+
     /// 卡图 URL（缩略图 82x120）
     var thumbnailURL: URL? {
-        URL(string: "https://cdn.233.momobako.com/ygopro/pics/\(id).jpg!thumb2")
+        if isPreReleaseCard {
+            return preReleaseImageURL
+        }
+        return URL(string: "https://cdn.233.momobako.com/ygopro/pics/\(id).jpg!thumb2")
     }
-    
+
     /// 卡图 URL（半尺寸 200x290）
     var halfImageURL: URL? {
-        URL(string: "https://cdn.233.momobako.com/ygopro/pics/\(id).jpg!half")
+        if isPreReleaseCard {
+            return preReleaseImageURL
+        }
+        return URL(string: "https://cdn.233.momobako.com/ygopro/pics/\(id).jpg!half")
     }
-    
+
     /// 卡图 URL（完整尺寸）
     var fullImageURL: URL? {
-        URL(string: "https://cdn.233.momobako.com/ygopro/pics/\(id).jpg")
+        if isPreReleaseCard {
+            return preReleaseImageURL
+        }
+        return URL(string: "https://cdn.233.momobako.com/ygopro/pics/\(id).jpg")
     }
     
     /// 安全获取类型描述

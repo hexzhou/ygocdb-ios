@@ -41,11 +41,17 @@ struct SearchView: View {
                             Image(systemName: "sparkles")
                                 .foregroundColor(.orange)
                         }
-                        
+
+                        // 组卡器按钮
+                        NavigationLink(destination: DeckBuilderListView()) {
+                            Image(systemName: "rectangle.stack.fill")
+                                .foregroundColor(.blue)
+                        }
+
                         // 竖向分割线
                         Divider()
                             .frame(height: 20)
-                        
+
                         // 设置按钮
                         Button {
                             showSettings = true

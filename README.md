@@ -25,6 +25,10 @@
 - 📝 **多来源译名**：YGOPRO/简中/Master Duel/NWBBS/CNOCG 译名可选
 - ⚡ **自动更新**：支持自动/手动更新策略，可配置更新间隔
 - 📵 **离线支持**：下载后可完全离线使用
+- 🃏 **卡组构建**：支持创建、编辑、从剪贴板导入/导出卡组
+- 📊 **概率计算**：内置起手概率计算器，支持自定义特定手牌组合概率分析
+- ⚖️ **Side 策略**：换 Side 策略辅助，记录换备方案
+- 🎲 **模拟抽卡**：卡组试抽功能 (Hand Test)
 
 ## 技术架构
 
@@ -33,57 +37,49 @@
 采用 **MVVM** (Model-View-ViewModel) 架构模式：
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         Views                                │
-│  SearchView · CardDetailView · SettingsView · CardRowView   │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-┌─────────────────────────▼───────────────────────────────────┐
-│                      ViewModels                              │
-│    CardSearchViewModel · CardDetailViewModel                 │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-┌─────────────────────────▼───────────────────────────────────┐
-│                    Repository                                │
-│                   CardRepository                             │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-┌─────────────────────────▼───────────────────────────────────┐
-│                      Services                                │
-│         YGODBService · ImageCache · NetworkConfig            │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                 Views                                   │
+│  SearchView · CardDetailView · DeckBuilderView · SideboardStrategyView  │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+┌────────────────────────────────────▼────────────────────────────────────┐
+│                               ViewModels                                │
+│ CardSearchViewModel · CardDetailViewModel · DeckBuilderViewModel        │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+┌────────────────────────────────────▼────────────────────────────────────┐
+│                       Repository / Services                             │
+│       CardRepository · DeckService · ProbabilityCalculator              │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 目录结构
 
-```
 ygocdb/
 ├── Models/                 # 数据模型
 │   ├── Card.swift          # 卡片核心模型
-│   ├── CardConstants.swift # 卡片常量定义（种族、属性等）
-│   ├── CardDetail.swift    # 卡片详情模型
-│   ├── PreReleaseCard.swift# 先行卡模型
-│   └── Settings.swift      # 应用设置模型
+│   ├── Deck.swift          # 卡组模型
+│   ├── SideboardStrategy.swift # Side 策略模型
+│   ├── ProbabilityScenario.swift # 概率计算场景
+│   └── ...
 ├── Repository/
 │   └── CardRepository.swift# 卡片数据仓库
 ├── Services/
+│   ├── DeckService.swift   # 卡组管理服务
+│   ├── ProbabilityCalculator.swift # 概率计算服务
 │   ├── YGODBService.swift  # API 服务
-│   ├── ImageCache.swift    # 图片缓存
-│   ├── PreReleaseCardService.swift
-│   └── NetworkConfig.swift # 网络配置
+│   └── ...
 ├── ViewModels/
 │   ├── CardSearchViewModel.swift
-│   ├── CardDetailViewModel.swift
-│   └── PreReleaseCardViewModel.swift
+│   ├── DeckBuilderViewModel.swift
+│   └── ...
 ├── Views/
 │   ├── SearchView.swift    # 主搜索界面
-│   ├── CardDetailView.swift# 卡片详情
-│   ├── CardRowView.swift   # 卡片列表行
-│   ├── CardListView.swift  # 卡片列表
-│   ├── CardFilterView.swift# 筛选视图
-│   ├── SettingsView.swift  # 设置界面
-│   ├── PreReleaseCardView.swift
-│   └── CachedAsyncImage.swift # 带缓存的图片组件
+│   ├── DeckBuilderView.swift # 卡组构建
+│   ├── ProbabilityCalcView.swift # 概率计算
+│   ├── SideboardStrategyView.swift # Side 策略
+│   ├── HandTestView.swift  # 试抽界面
+│   └── ...
 └── ygocdbApp.swift         # 应用入口
 ```
 

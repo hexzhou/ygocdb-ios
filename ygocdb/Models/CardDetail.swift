@@ -35,6 +35,8 @@ struct CardFullDetail: Codable {
     let data: CardData?
     /// FAQ 列表
     let faqs: [CardQA]?
+    /// 补充调整
+    let supplement: CardSupplement?
     /// 日文卡包发售信息
     let jppacks: [CardPack]?
     /// 英文卡包发售信息
@@ -43,7 +45,7 @@ struct CardFullDetail: Codable {
     let avail: CardAvailability?
     
     enum CodingKeys: String, CodingKey {
-        case cid, id, text, data, faqs, jppacks, enpacks, avail
+        case cid, id, text, data, faqs, supplement, jppacks, enpacks, avail
         case cnName = "cn_name"
         case scName = "sc_name"
         case mdName = "md_name"
@@ -52,6 +54,28 @@ struct CardFullDetail: Codable {
         case jpRuby = "jp_ruby"
         case jpName = "jp_name"
         case enName = "en_name"
+    }
+}
+
+/// 补充调整
+struct CardSupplement: Codable {
+    let refer: [String: Bool]?
+    let text: String?
+    let date: String?
+
+    /// 清理 HTML 标签的说明文本
+    var cleanText: String {
+        guard var raw = text else { return "" }
+        raw = raw.replacingOccurrences(of: "<hr\\s*/?>", with: "\n\n", options: .regularExpression)
+        raw = raw.replacingOccurrences(of: "<li\\s+class=\"about\">", with: "\n", options: .regularExpression)
+        raw = raw.replacingOccurrences(of: "<li>", with: "• ")
+        raw = raw.replacingOccurrences(of: "</li>", with: "\n")
+        raw = raw.replacingOccurrences(of: "<ul>", with: "")
+        raw = raw.replacingOccurrences(of: "</ul>", with: "")
+        raw = raw.replacingOccurrences(of: "<br>", with: "\n")
+        raw = raw.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        raw = raw.replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
+        return raw.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

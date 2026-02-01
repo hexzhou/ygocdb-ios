@@ -17,14 +17,19 @@ class PreReleaseCardViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var showError: Bool = false
     
-    /// 过滤后的卡片
+    /// 过滤后的卡片（排除已在全卡数据中存在的卡片）
     var filteredCards: [PreReleaseCard] {
-        if searchText.isEmpty {
-            return cards
+        // 首先过滤掉已在全卡数据中存在的卡片
+        let uniqueCards = cards.filter { card in
+            CardRepository.shared.getCard(byId: card.id) == nil
         }
-        
+
+        if searchText.isEmpty {
+            return uniqueCards
+        }
+
         let query = searchText.lowercased()
-        return cards.filter { card in
+        return uniqueCards.filter { card in
             card.name.lowercased().contains(query) ||
             card.desc.lowercased().contains(query) ||
             String(card.id).contains(searchText)
