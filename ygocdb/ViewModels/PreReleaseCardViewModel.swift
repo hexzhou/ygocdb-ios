@@ -16,12 +16,13 @@ class PreReleaseCardViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     @Published var showError: Bool = false
+    @Published private(set) var idChangelog: [Int: Int] = [:]
     
     /// 过滤后的卡片（排除已在全卡数据中存在的卡片）
     var filteredCards: [PreReleaseCard] {
         // 首先过滤掉已在全卡数据中存在的卡片
         let uniqueCards = cards.filter { card in
-            CardRepository.shared.getCard(byId: card.id) == nil
+            idChangelog[card.id] == nil
         }
 
         if searchText.isEmpty {
@@ -50,10 +51,12 @@ class PreReleaseCardViewModel: ObservableObject {
     func loadCards(forceRefresh: Bool = false) async {
         isLoading = true
         errorMessage = nil
-        
+
         do {
             cards = try await PreReleaseCardService.shared.fetchCards(forceRefresh: forceRefresh)
+            idChangelog = await CardIDChangelogService.shared.getCachedMappings()
         } catch {
+            idChangelog = await CardIDChangelogService.shared.getCachedMappings()
             errorMessage = error.localizedDescription
             showError = true
         }

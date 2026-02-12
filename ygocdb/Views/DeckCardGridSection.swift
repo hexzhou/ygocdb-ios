@@ -133,7 +133,7 @@ struct DeckCardGridSection: View {
         .alert("卡片数据未加载", isPresented: $showMissingDataAlert) {
             Button("确定", role: .cancel) {}
         } message: {
-            Text("请先在主界面下载/加载卡片数据库，或下载先行卡数据")
+            Text("请先在主界面下载/加载卡片数据库，或下载先行卡数据。若你刚执行了一键切换，请手动检查并更新卡片数据库。")
         }
     }
 

@@ -69,8 +69,7 @@ struct DeckCardSearchView: View {
     /// 先行卡过滤结果（排除已在全卡数据中存在的卡片）
     var filteredPreReleaseCards: [PreReleaseCard] {
         preReleaseViewModel.filteredCards.filter { card in
-            // 如果全卡数据中已有该 ID 的卡片，则不显示在先行卡列表中
-            CardRepository.shared.getCard(byId: card.id) == nil
+            preReleaseViewModel.idChangelog[card.id] == nil
         }
     }
 

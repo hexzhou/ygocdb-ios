@@ -20,6 +20,12 @@ struct DeckCardItem: Codable, Identifiable {
     let cardId: Int  // 卡片密码
     let deckType: DeckType
 
+    init(id: UUID, cardId: Int, deckType: DeckType) {
+        self.id = id
+        self.cardId = cardId
+        self.deckType = deckType
+    }
+
     init(cardId: Int, deckType: DeckType) {
         self.id = UUID()
         self.cardId = cardId

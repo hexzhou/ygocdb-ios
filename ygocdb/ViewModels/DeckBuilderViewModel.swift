@@ -189,6 +189,83 @@ class DeckBuilderViewModel: ObservableObject {
         }
     }
 
+    /// 一键将已存在正式卡版本的先行卡替换为正式卡 ID
+    /// - Returns: 实际被替换的卡片数量
+    @discardableResult
+    func replacePreReleaseCardsWithOfficial(in deck: Deck, idMappings: [Int: Int]) -> Int {
+        guard var updatedDeck = decks.first(where: { $0.id == deck.id }) else { return 0 }
+
+        func mapCardIds(_ ids: [Int]) -> [Int] {
+            ids.map { oldId in
+                guard let newId = idMappings[oldId] else {
+                    return oldId
+                }
+                return newId
+            }
+        }
+
+        func mapChanges(_ changes: [SideboardCardChange]) -> [SideboardCardChange] {
+            changes.map { change in
+                guard let newId = idMappings[change.cardId] else {
+                    return change
+                }
+                return SideboardCardChange(cardId: newId, count: change.count)
+            }
+        }
+
+        var replacedCount = 0
+        var newItems: [DeckCardItem] = []
+        newItems.reserveCapacity(updatedDeck.cards.count)
+
+        for item in updatedDeck.cards {
+            guard let newId = idMappings[item.cardId] else {
+                newItems.append(item)
+                continue
+            }
+
+            newItems.append(DeckCardItem(id: item.id, cardId: newId, deckType: item.deckType))
+            replacedCount += 1
+        }
+
+        guard replacedCount > 0 else { return 0 }
+
+        updatedDeck.cards = newItems
+        updatedDeck.probabilityScenarios = updatedDeck.probabilityScenarios.map { scenario in
+            var mapped = scenario
+            mapped.groups = mapped.groups.map { group in
+                var mappedGroup = group
+                mappedGroup.cardIds = mapCardIds(group.cardIds)
+                return mappedGroup
+            }
+            return mapped
+        }
+        updatedDeck.sideboardStrategies = updatedDeck.sideboardStrategies.map { strategy in
+            var mapped = strategy
+            mapped.first.swapOutMain = mapChanges(mapped.first.swapOutMain)
+            mapped.first.swapInMain = mapChanges(mapped.first.swapInMain)
+            mapped.first.swapOutExtra = mapChanges(mapped.first.swapOutExtra)
+            mapped.first.swapInExtra = mapChanges(mapped.first.swapInExtra)
+            mapped.second.swapOutMain = mapChanges(mapped.second.swapOutMain)
+            mapped.second.swapInMain = mapChanges(mapped.second.swapInMain)
+            mapped.second.swapOutExtra = mapChanges(mapped.second.swapOutExtra)
+            mapped.second.swapInExtra = mapChanges(mapped.second.swapInExtra)
+            return mapped
+        }
+        updatedDeck.updatedAt = Date()
+
+        do {
+            try deckService.saveDeck(updatedDeck)
+            loadDecks()
+            currentDeck = updatedDeck
+        } catch {
+            errorMessage = "切换正式卡失败: \(error.localizedDescription)"
+            showError = true
+            return 0
+        }
+
+        return replacedCount
+    }
+
     /// 更新概率场景
     func updateProbabilityScenarios(_ scenarios: [ProbabilityScenario], for deck: Deck) {
         var updatedDeck = deck

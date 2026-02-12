@@ -25,6 +25,9 @@ struct DeckBuilderView: View {
     @State private var showProbabilityCalc = false
     @State private var showSideboardStrategies = false
     @State private var toastMessage: String?
+    @State private var idChangelog: [Int: Int] = [:]
+    @State private var loadingChangelog = false
+    @State private var showConvertAlert = false
 
     enum DisplayMode {
         case list
@@ -33,6 +36,19 @@ struct DeckBuilderView: View {
 
     var currentDeck: Deck {
         viewModel.decks.first(where: { $0.id == deck.id }) ?? deck
+    }
+
+    private var convertiblePreReleaseCount: Int {
+        currentDeck.cards.reduce(into: 0) { count, item in
+            guard idChangelog[item.cardId] != nil else {
+                return
+            }
+            count += 1
+        }
+    }
+
+    private var shouldShowConvertButton: Bool {
+        convertiblePreReleaseCount > 0
     }
 
     var body: some View {
@@ -65,6 +81,16 @@ struct DeckBuilderView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 12) {
+                    if shouldShowConvertButton {
+                        Button {
+                            showConvertAlert = true
+                        } label: {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                        }
+                        .foregroundColor(.orange)
+                        .accessibilityLabel("检测到可切换为正式卡的先行卡")
+                    }
+
                     // 切换显示模式
                     Button {
                         displayMode = displayMode == .list ? .grid : .list
@@ -156,6 +182,15 @@ struct DeckBuilderView: View {
             Button("确定", role: .cancel) {}
         } message: {
             Text(viewModel.errorMessage ?? "未知错误")
+        }
+        .alert("部分先行卡已有正式版本，是否一键切换成正式卡", isPresented: $showConvertAlert) {
+            Button("取消", role: .cancel) {}
+            Button("确认") {
+                applyOneClickConvert()
+            }
+        }
+        .task(id: deck.id) {
+            await loadIDChangelogIfNeeded()
         }
     }
 
@@ -670,6 +705,26 @@ struct DeckBuilderView: View {
             }
         }
     }
+
+    @MainActor
+    private func loadIDChangelogIfNeeded(forceRefresh: Bool = false) async {
+        if loadingChangelog { return }
+        loadingChangelog = true
+        defer { loadingChangelog = false }
+
+        do {
+            idChangelog = try await CardIDChangelogService.shared.fetchMappings(forceRefresh: forceRefresh)
+        } catch {
+            idChangelog = await CardIDChangelogService.shared.getCachedMappings()
+        }
+    }
+
+    private func applyOneClickConvert() {
+        let replaced = viewModel.replacePreReleaseCardsWithOfficial(in: currentDeck, idMappings: idChangelog)
+        if replaced > 0 {
+            showToast("已切换 \(replaced) 张为正式卡")
+        }
+    }
 }
 
 /// 卡片分组
@@ -947,7 +1002,7 @@ struct DeckCardRowView: View {
         .alert("卡片数据未加载", isPresented: $showMissingDataAlert) {
             Button("确定", role: .cancel) {}
         } message: {
-            Text("请先在主界面下载/加载卡片数据库，或下载先行卡数据")
+            Text("请先在主界面下载/加载卡片数据库，或下载先行卡数据。若你刚执行了一键切换，请手动检查并更新卡片数据库。")
         }
         .task {
             // 如果正式卡库中找不到，尝试从先行卡获取

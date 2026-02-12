@@ -30,6 +30,9 @@ actor PreReleaseCardService {
         guard let url = URL(string: apiURL) else {
             throw PreReleaseCardError.invalidURL
         }
+
+        // 同步预热 ID 变更记录缓存（失败不影响先行卡主流程）
+        _ = try? await CardIDChangelogService.shared.fetchMappings(forceRefresh: forceRefresh)
         
         // 如果有缓存且不是强制刷新，先用 HEAD 检查是否有更新
         if !forceRefresh, let cached = cachedCards {
