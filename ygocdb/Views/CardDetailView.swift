@@ -15,173 +15,103 @@ struct CardDetailView: View {
     @State private var toastMessage: String?
     @State private var loadedImage: UIImage?
     @State private var showShareSheet = false
-    
+    @State private var showFullImage = false
+
     init(card: Card) {
         self.card = card
         _viewModel = StateObject(wrappedValue: CardDetailViewModel(card: card))
     }
+
+    private var hasOnlineSections: Bool {
+        settings.networkMode == .online && (
+            viewModel.isLoading ||
+            viewModel.hasSupplement ||
+            viewModel.hasFAQs ||
+            viewModel.hasJPPacks ||
+            viewModel.hasENPacks
+        )
+    }
+
+    private var formattedOtDisplay: String {
+        card.otDisplay.replacingOccurrences(of: "|", with: " | ")
+    }
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                // 卡图（带缓存和重试机制）
-                CachedAsyncImage(
-                    url: settings.getImageURL(for: card, size: settings.detailImageQuality.size),
-                    cacheKey: "\(settings.cardImageLanguage.rawValue)-\(card.id)-\(settings.detailImageQuality.rawValue)"
-                ) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .shadow(radius: 10)
-                        .onAppear {
-                            // 保存加载的图片用于分享/保存
-                            Task {
-                                if let url = settings.getImageURL(for: card, size: settings.detailImageQuality.size) {
-                                    loadedImage = try? await ImageCache.shared.downloadAndCache(from: url)
-                                }
-                            }
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 20) {
+                    topSummarySection(availableWidth: max(geometry.size.width - 32, 0))
+
+                    Divider()
+
+                    // 灵摆效果（如果有）
+                    if !card.pdescDisplay.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("灵摆效果")
+                                .font(.headline)
+
+                            Text(card.pdescDisplay)
+                                .font(.body)
+                                .textSelection(.enabled)
                         }
-                } placeholder: {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.2))
-                        .aspectRatio(0.69, contentMode: .fit)
-                        .overlay(
-                            ProgressView()
-                        )
-                }
-                .frame(maxWidth: settings.detailImageQuality == .original ? 400 : 250)
-                .contextMenu {
-                    Button {
-                        saveImageToAlbum()
-                    } label: {
-                        Label("保存到相册", systemImage: "square.and.arrow.down")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Divider()
                     }
-                    
-                    Button {
-                        showShareSheet = true
-                    } label: {
-                        Label("分享图片", systemImage: "square.and.arrow.up")
-                    }
-                }
-                
-                // 卡片名称
-                VStack(spacing: 8) {
-                    Text(settings.getDisplayName(for: card))
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .multilineTextAlignment(.center)
-                        .textSelection(.enabled)
-                    
-                    if let jpName = card.jpName {
-                        Text(jpName)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .textSelection(.enabled)
-                    }
-                    
-                    if let enName = card.enName {
-                        Text(enName)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .textSelection(.enabled)
-                    }
-                }
-                
-                Divider()
-                
-                // 卡片类型
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("卡片信息")
-                        .font(.headline)
-                    
-                    Text(card.typesDisplay)
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .textSelection(.enabled)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                
-                Divider()
-                
-                // 灵摆效果（如果有）
-                if !card.pdescDisplay.isEmpty {
+
+                    // 卡片效果/描述
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("灵摆效果")
+                        Text((card.data?.isMonster ?? false) ? "效果/描述" : "效果")
                             .font(.headline)
-                        
-                        Text(card.pdescDisplay)
+
+                        Text(card.descDisplay)
                             .font(.body)
                             .textSelection(.enabled)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    Divider()
-                }
-                
-                // 卡片效果/描述
-                VStack(alignment: .leading, spacing: 8) {
-                    Text((card.data?.isMonster ?? false) ? "效果/描述" : "效果")
-                        .font(.headline)
-                    
-                    Text(card.descDisplay)
-                        .font(.body)
-                        .textSelection(.enabled)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                
-                Divider()
-                
-                // 卡片密码
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("卡片密码")
-                        .font(.headline)
-                    
-                    Text(String(format: "%08d", card.id))
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundColor(.secondary)
-                        .textSelection(.enabled)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                
-                // 在线模式额外信息
-                if settings.networkMode == .online {
-                    if viewModel.isLoading {
-                        Divider()
-                        HStack {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                            Text("加载更多信息...")
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    
-                    // 补充调整
-                    if viewModel.hasSupplement, let supplement = viewModel.cardDetail?.supplement {
-                        Divider()
-                        SupplementSection(supplement: supplement)
-                    }
 
-                    // FAQ 区域
-                    if viewModel.hasFAQs, let faqs = viewModel.cardDetail?.faqs {
+                    // 在线模式额外信息
+                    if hasOnlineSections {
                         Divider()
-                        FAQSection(faqs: faqs)
-                    }
-                    
-                    // 发售信息区域
-                    if viewModel.hasJPPacks || viewModel.hasENPacks {
-                        Divider()
-                        PacksSection(
-                            jppacks: viewModel.cardDetail?.jppacks,
-                            enpacks: viewModel.cardDetail?.enpacks
-                        )
+
+                        if viewModel.isLoading {
+                            HStack {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                Text("加载更多信息...")
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            Divider()
+                        }
+
+                        // 补充调整
+                        if viewModel.hasSupplement, let supplement = viewModel.cardDetail?.supplement {
+                            SupplementSection(supplement: supplement)
+                            Divider()
+                        }
+
+                        // FAQ 区域
+                        if viewModel.hasFAQs, let faqs = viewModel.cardDetail?.faqs {
+                            FAQSection(faqs: faqs)
+                            Divider()
+                        }
+
+                        // 发售信息区域
+                        if viewModel.hasJPPacks || viewModel.hasENPacks {
+                            PacksSection(
+                                jppacks: viewModel.cardDetail?.jppacks,
+                                enpacks: viewModel.cardDetail?.enpacks
+                            )
+                        }
                     }
                 }
+                .padding()
             }
-            .padding()
         }
         .navigationTitle(settings.getDisplayName(for: card))
         .navigationBarTitleDisplayMode(.inline)
+        .hideTabBar()
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
@@ -211,6 +141,149 @@ struct CardDetailView: View {
                let jpegImage = UIImage(data: jpegData) {
                 ShareSheet(items: [jpegImage])
             }
+        }
+        .fullScreenCover(isPresented: $showFullImage) {
+            FullImageView(
+                url: settings.getImageURL(for: card, size: .full),
+                cacheKey: "\(settings.cardImageLanguage.rawValue)-\(card.id)-full",
+                initialImage: loadedImage
+            )
+        }
+    }
+
+    private func topSummarySection(availableWidth: CGFloat) -> some View {
+        let imageWidth: CGFloat
+        let spacing: CGFloat
+
+        switch availableWidth {
+        case ..<360:
+            imageWidth = 118
+            spacing = 12
+        case ..<430:
+            imageWidth = 132
+            spacing = 14
+        case ..<560:
+            imageWidth = 144
+            spacing = 16
+        default:
+            imageWidth = min(max(availableWidth * 0.30, 148), 180)
+            spacing = 18
+        }
+
+        return HStack(alignment: .top, spacing: spacing) {
+            detailImage(width: imageWidth)
+            cardInfoSection
+        }
+    }
+
+    private func detailImage(width: CGFloat) -> some View {
+        CachedAsyncImage(
+            url: settings.getImageURL(for: card, size: settings.detailImageQuality.size),
+            cacheKey: "\(settings.cardImageLanguage.rawValue)-\(card.id)-\(settings.detailImageQuality.rawValue)"
+        ) { image in
+            image
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .shadow(radius: 10)
+                .onAppear {
+                    Task {
+                        if let url = settings.getImageURL(for: card, size: settings.detailImageQuality.size) {
+                            loadedImage = try? await ImageCache.shared.downloadAndCache(from: url)
+                        }
+                    }
+                }
+        } placeholder: {
+            Rectangle()
+                .fill(Color.gray.opacity(0.2))
+                .aspectRatio(0.69, contentMode: .fit)
+                .overlay(
+                    ProgressView()
+                )
+        }
+        .frame(width: width)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            showFullImage = true
+        }
+        .overlay(alignment: .bottomTrailing) {
+            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                .font(.caption2.weight(.bold))
+                .foregroundColor(.white)
+                .padding(6)
+                .background(Color.black.opacity(0.45))
+                .clipShape(Circle())
+                .padding(6)
+        }
+        .contextMenu {
+            Button {
+                saveImageToAlbum()
+            } label: {
+                Label("保存到相册", systemImage: "square.and.arrow.down")
+            }
+
+            Button {
+                showShareSheet = true
+            } label: {
+                Label("分享图片", systemImage: "square.and.arrow.up")
+            }
+        }
+    }
+
+    private var cardInfoSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(settings.getDisplayName(for: card))
+                .font(.title3)
+                .fontWeight(.bold)
+                .multilineTextAlignment(.leading)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if let jpName = card.jpName {
+                Text(jpName)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let enName = card.enName {
+                Text(enName)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Text(card.typesDisplay)
+                .font(.subheadline)
+                .foregroundColor(.blue)
+                .textSelection(.enabled)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                metaRow(label: "卡密", value: String(format: "%08d", card.id), monospaced: true)
+                metaRow(label: "CID", value: String(card.cid), monospaced: true)
+                metaRow(label: "范围", value: formattedOtDisplay)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func metaRow(label: String, value: String, monospaced: Bool = false) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .frame(width: 32, alignment: .leading)
+
+            Text(value)
+                .font(monospaced ? .system(.caption, design: .monospaced) : .caption)
+                .foregroundColor(.secondary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
     
@@ -486,7 +559,7 @@ struct FAQItem: View {
         A: \(faq.cleanAnswer)
         """
         UIPasteboard.general.string = text
-        
+
         withAnimation {
             showCopiedToast = true
         }
@@ -602,6 +675,105 @@ struct PackItem: View {
                 .foregroundColor(.secondary)
         }
         .padding(.vertical, 2)
+    }
+}
+
+/// 全屏查看大卡图
+struct FullImageView: View {
+    let url: URL?
+    let cacheKey: String
+    let initialImage: UIImage?
+    @Environment(\.dismiss) private var dismiss
+    @State private var loadedImage: UIImage?
+    @State private var showShareSheet = false
+    @State private var showSavedToast = false
+
+    private var actionImage: UIImage? {
+        loadedImage ?? initialImage
+    }
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    dismiss()
+                }
+
+            CachedAsyncImage(url: url, cacheKey: cacheKey) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            } placeholder: {
+                ProgressView()
+                    .tint(.white)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contextMenu {
+                if actionImage != nil {
+                    Button {
+                        saveImageToPhotos()
+                    } label: {
+                        Label("保存到相册", systemImage: "square.and.arrow.down")
+                    }
+
+                    Button {
+                        showShareSheet = true
+                    } label: {
+                        Label("分享", systemImage: "square.and.arrow.up")
+                    }
+                }
+            }
+
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title)
+                    .foregroundColor(.white.opacity(0.8))
+                    .padding()
+            }
+
+            if showSavedToast {
+                VStack {
+                    Spacer()
+                    Text("已保存到相册")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(Color.white.opacity(0.2))
+                        .clipShape(Capsule())
+                        .padding(.bottom, 60)
+                }
+                .frame(maxWidth: .infinity)
+                .transition(.opacity)
+            }
+        }
+        .task(id: url?.absoluteString) {
+            guard let url = url else { return }
+            if let cachedImage = await ImageCache.shared.loadImage(for: url) {
+                loadedImage = cachedImage
+                return
+            }
+            loadedImage = try? await ImageCache.shared.downloadAndCache(from: url)
+        }
+        .sheet(isPresented: $showShareSheet) {
+            if let image = actionImage {
+                ShareSheet(items: [image])
+            }
+        }
+    }
+
+    private func saveImageToPhotos() {
+        guard let image = actionImage else { return }
+        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+        withAnimation { showSavedToast = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation { showSavedToast = false }
+        }
     }
 }
 

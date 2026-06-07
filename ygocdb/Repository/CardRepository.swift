@@ -222,7 +222,7 @@ class CardRepository: ObservableObject {
                 }
             }
 
-            return results
+            return results.reversed()
         }.value
     }
 }

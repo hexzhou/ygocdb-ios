@@ -40,7 +40,7 @@ enum AutoUpdatePolicy: String, CaseIterable, Codable {
     }
 }
 
-/// 译名翻译来源
+/// 卡片名称来源
 enum CardNameSource: String, CaseIterable, Codable {
     case ygopro = "YGOPRO"
     case sc = "简体中文"
@@ -183,8 +183,8 @@ enum DetailImageQuality: String, CaseIterable, Codable {
 class AppSettings: ObservableObject {
     static let shared = AppSettings()
     
-    @AppStorage("cardNameSource") var cardNameSource: CardNameSource = .ygopro
-    @AppStorage("cardImageLanguage") var cardImageLanguage: CardImageLanguage = .ygopro
+    @AppStorage("cardNameSource") var cardNameSource: CardNameSource = .sc
+    @AppStorage("cardImageLanguage") var cardImageLanguage: CardImageLanguage = .sc
     @AppStorage("cardListStyle") var cardListStyle: CardListStyle = .compact
     @AppStorage("detailImageQuality") var detailImageQuality: DetailImageQuality = .high
     @AppStorage("appearanceMode") var appearanceMode: AppearanceMode = .system
@@ -194,7 +194,7 @@ class AppSettings: ObservableObject {
     @AppStorage("updateMode") var updateMode: UpdateMode = .automatic
     @AppStorage("autoUpdatePolicy") var autoUpdatePolicy: AutoUpdatePolicy = .everyHour
     @AppStorage("lastUpdateCheckTime") private var lastUpdateCheckTimeInterval: Double = 0
-    
+
     /// 上次检查更新时间
     var lastUpdateCheckTime: Date? {
         get {

@@ -78,6 +78,7 @@ struct DeckBuilderView: View {
         }
         .navigationTitle(currentDeck.name)
         .navigationBarTitleDisplayMode(.inline)
+        .hideTabBar()
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 12) {
@@ -438,8 +439,10 @@ struct DeckBuilderView: View {
     /// 按卡片ID分组
     private func groupCardsByID(_ items: [DeckCardItem]) -> [CardGroup] {
         let grouped = Dictionary(grouping: items, by: { $0.cardId })
-        return grouped.map { CardGroup(cardId: $0.key, items: $0.value) }
-            .sorted { $0.cardId < $1.cardId }
+        return DeckCardDisplaySorter.sortCardGroups(
+            grouped.map { CardGroup(cardId: $0.key, items: $0.value) },
+            cardId: \.cardId
+        )
     }
 
     /// 导出卡组
@@ -511,7 +514,7 @@ struct DeckBuilderView: View {
     private func renderDeckImage(cardImages: [Int: UIImage]) -> UIImage {
         let cardWidth: CGFloat = 44
         let cardHeight: CGFloat = cardWidth / 0.69
-        let columns = 8
+        let columns = 10
         let padding: CGFloat = 16
         let headerSpacing: CGFloat = 10
         let sectionSpacing: CGFloat = 20
@@ -643,12 +646,7 @@ struct DeckBuilderView: View {
         spacing: CGFloat,
         context: UIGraphicsImageRendererContext
     ) {
-        let sortedCards = cards.sorted {
-            if $0.cardId == $1.cardId {
-                return $0.id.uuidString < $1.id.uuidString
-            }
-            return $0.cardId < $1.cardId
-        }
+        let sortedCards = DeckCardDisplaySorter.sortedItems(cards)
         for (index, card) in sortedCards.enumerated() {
             let row = index / columns
             let col = index % columns

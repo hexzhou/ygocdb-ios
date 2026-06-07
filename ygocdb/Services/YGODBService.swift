@@ -12,11 +12,16 @@ import os.log
 /// ygocdb API 服务
 actor YGODBService {
     static let shared = YGODBService()
-    
+
     private let baseURL = "https://ygocdb.com/api/v0"
     private let session: URLSession
     private let logger = Logger(subsystem: "com.ygocdb", category: "YGODBService")
-    
+
+    /// 卡片详情 LRU 缓存
+    private var detailCache: [Int: CardFullDetail] = [:]
+    private var detailCacheOrder: [Int] = []
+    private let detailCacheLimit = 100
+
     private init() {
         // 使用共享的网络配置（长任务超时）
         self.session = NetworkConfig.longTask
@@ -243,24 +248,39 @@ actor YGODBService {
     
     /// 获取单张卡片的完整信息（包含 FAQ 和发售信息）
     func fetchCardDetail(cardId: Int) async throws -> CardFullDetail {
+        // 查缓存
+        if let cached = detailCache[cardId] {
+            // 移到最近使用位置
+            detailCacheOrder.removeAll { $0 == cardId }
+            detailCacheOrder.append(cardId)
+            return cached
+        }
+
         let url = URL(string: "\(baseURL)/card/\(cardId)?show=all")!
-//        logger.info("📥 获取卡片详情: \(url.absoluteString)")
-        
+
         let (data, response) = try await session.data(from: url)
-        
+
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 else {
-//            logger.error("❌ 获取卡片详情失败")
             throw YGODBError.downloadFailed
         }
-        
+
         let decoder = JSONDecoder()
         do {
             let detail = try decoder.decode(CardFullDetail.self, from: data)
-//            logger.info("✅ 获取卡片详情成功: \(detail.cnName ?? detail.jpName ?? "Unknown")")
+
+            // 写入缓存
+            detailCache[cardId] = detail
+            detailCacheOrder.append(cardId)
+
+            // 淘汰最久未使用的
+            while detailCacheOrder.count > detailCacheLimit {
+                let evicted = detailCacheOrder.removeFirst()
+                detailCache.removeValue(forKey: evicted)
+            }
+
             return detail
         } catch {
-//            logger.error("❌ 解析卡片详情失败: \(error.localizedDescription)")
             throw YGODBError.parseError
         }
     }

@@ -72,6 +72,19 @@ class DeckBuilderViewModel: ObservableObject {
         }
     }
 
+    /// 复制卡组
+    func duplicateDeck(_ deck: Deck, newName: String) {
+        let duplicatedDeck = deck.duplicated(name: newName)
+
+        do {
+            try deckService.saveDeck(duplicatedDeck)
+            loadDecks()
+        } catch {
+            errorMessage = "复制卡组失败: \(error.localizedDescription)"
+            showError = true
+        }
+    }
+
     /// 添加卡片到卡组
     func addCard(cardId: Int, to deckType: DeckType, in deck: Deck) -> AddCardResult {
         guard var updatedDeck = decks.first(where: { $0.id == deck.id }) else { return .failed }

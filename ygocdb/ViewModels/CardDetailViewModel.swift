@@ -9,6 +9,17 @@ import Foundation
 import Combine
 import os.log
 
+extension Error {
+    var isTaskCancellation: Bool {
+        if self is CancellationError {
+            return true
+        }
+
+        let nsError = self as NSError
+        return nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled
+    }
+}
+
 /// 卡片详情视图模型
 @MainActor
 class CardDetailViewModel: ObservableObject {
@@ -38,6 +49,12 @@ class CardDetailViewModel: ObservableObject {
             cardDetail = try await YGODBService.shared.fetchCardDetail(cardId: card.id)
             logger.info("✅ 成功获取卡片详情: \(self.card.id)")
         } catch {
+            if error.isTaskCancellation || Task.isCancelled {
+                logger.debug("⏹️ 卡片详情请求已取消: \(self.card.id)")
+                isLoading = false
+                return
+            }
+
             self.error = error.localizedDescription
             logger.error("❌ 获取卡片详情失败: \(error.localizedDescription)")
         }

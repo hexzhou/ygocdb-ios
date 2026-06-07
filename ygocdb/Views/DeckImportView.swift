@@ -42,7 +42,7 @@ struct DeckImportView: View {
                 } header: {
                     Text("卡组代码")
                 } footer: {
-                    Text("粘贴以 #main、#extra、!side 格式的卡组代码")
+                    Text("支持 #main/#extra/!side 文本格式，或 YGOPRO2 的卡组代码")
                 }
 
                 if let preview = previewDeck {
@@ -134,7 +134,7 @@ struct DeckImportView: View {
         }
 
         guard let deck = Deck.importFromCode(deckCode, name: deckName) else {
-            errorMessage = "卡组代码格式错误或无有效卡片"
+            errorMessage = "卡组代码格式错误（支持 YDK 文本或 Base64）或无有效卡片"
             showError = true
             return
         }

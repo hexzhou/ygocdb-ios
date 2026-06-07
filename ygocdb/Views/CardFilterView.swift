@@ -17,6 +17,8 @@ enum CardFilterCategory: String, CaseIterable {
 
 /// 卡片筛选条件
 class CardFilter: ObservableObject {
+    static let overflowLevelThreshold = 12
+
     // 当前选中的筛选类别（仅用于UI切换，不作为筛选条件）
     @Published var selectedCategory: CardFilterCategory = .monster
     
@@ -100,6 +102,19 @@ class CardFilter: ObservableObject {
     func clearTrapFilters() {
         selectedTrapTypes = []
     }
+
+    static func levelDisplayTitle(for level: Int) -> String {
+        level == overflowLevelThreshold ? "12+" : "\(level)"
+    }
+
+    private func matchesSelectedLevel(_ actualLevel: Int) -> Bool {
+        selectedLevels.contains { selectedLevel in
+            if selectedLevel == Self.overflowLevelThreshold {
+                return actualLevel >= selectedLevel
+            }
+            return actualLevel == selectedLevel
+        }
+    }
     
     /// 应用筛选到卡片列表
     func apply(to cards: [Card]) -> [Card] {
@@ -118,7 +133,15 @@ class CardFilter: ObservableObject {
                     // 怪兽种类筛选
                     if !selectedMonsterCategories.isEmpty {
                         let hasMatchingCategory = selectedMonsterCategories.contains { category in
-                            cardType.contains(category)
+                            guard cardType.contains(category) else { return false }
+                            // 选择"效果"时，排除融合/同调/超量/链接怪兽
+                            if category == .effect {
+                                let extraTypes: [CardType] = [.fusion, .synchro, .xyz, .link]
+                                if extraTypes.contains(where: { cardType.contains($0) }) {
+                                    return false
+                                }
+                            }
+                            return true
                         }
                         if !hasMatchingCategory { return false }
                     }
@@ -135,7 +158,7 @@ class CardFilter: ObservableObject {
                     if !selectedLevels.isEmpty {
                         let level = card.data?.level ?? 0
                         let actualLevel = level & 0xFF  // 取低8位作为等级
-                        if !selectedLevels.contains(actualLevel) { return false }
+                        if !matchesSelectedLevel(actualLevel) { return false }
                     }
                     
                     // 种族筛选
@@ -384,7 +407,7 @@ struct LevelFilterSection: View {
         ], spacing: 10) {
             ForEach(1...12, id: \.self) { level in
                 FilterChip(
-                    title: "\(level)",
+                    title: CardFilter.levelDisplayTitle(for: level),
                     isSelected: filter.selectedLevels.contains(level)
                 ) {
                     // 清除魔法和陷阱筛选

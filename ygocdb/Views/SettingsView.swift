@@ -28,245 +28,18 @@ struct SettingsView: View {
     @State private var isDownloading = false
     @State private var downloadProgress: Double = 0.0
     @State private var showUpdateConfirmAlert = false
-    
+
     var body: some View {
         NavigationView {
             Form {
-                // 网络设置
-                Section {
-                    Picker("网络模式", selection: $settings.networkMode) {
-                        ForEach(NetworkMode.allCases, id: \.self) { mode in
-                            Text(mode.rawValue).tag(mode)
-                        }
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
-                    
-                    if settings.networkMode == .online {
-                        Picker("更新模式", selection: $settings.updateMode) {
-                            ForEach(UpdateMode.allCases, id: \.self) { mode in
-                                Text(mode.rawValue).tag(mode)
-                            }
-                        }
-                        
-                        if settings.updateMode == .automatic {
-                            Picker("更新策略", selection: $settings.autoUpdatePolicy) {
-                                ForEach(AutoUpdatePolicy.allCases, id: \.self) { policy in
-                                    Text(policy.rawValue).tag(policy)
-                                }
-                            }
-                        }
-                    }
-                    
-                    // 检查更新按钮
-                    Button {
-                        Task { await checkForUpdates() }
-                    } label: {
-                        HStack {
-                            Image(systemName: "arrow.clockwise")
-                            Text("检查更新")
-                            Spacer()
-                            if isCheckingForUpdates {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                            } else if let result = updateCheckResult {
-                                Text(result)
-                                    .foregroundColor(.secondary)
-                                    .font(.caption)
-                            }
-                        }
-                    }
-                    .disabled(isCheckingForUpdates || isDownloading)
-                    .tint(.green)
-                    
-                    // 下载进度
-                    if isDownloading {
-                        VStack(spacing: 8) {
-                            HStack {
-                                Text("正在下载更新...")
-                                    .font(.subheadline)
-                                Spacer()
-                                Text("\(Int(downloadProgress * 100))%")
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.blue)
-                            }
-                            ProgressView(value: downloadProgress)
-                                .progressViewStyle(LinearProgressViewStyle())
-                        }
-                        .animation(.default, value: downloadProgress)
-                    }
-                } header: {
-                    Text("更新设置")
-                } footer: {
-                    if settings.networkMode == .offline {
-                        Text("离线模式下仅支持手动更新，不会自动检查更新")
-                    } else if settings.updateMode == .automatic {
-                        Text("自动更新：进入应用时根据策略自动检查更新")
-                    } else {
-                        Text("手动更新：需要手动点击检查更新按钮")
-                    }
-                }
-                
-                // 译名翻译
-                Section {
-                    Picker("译名来源", selection: $settings.cardNameSource) {
-                        ForEach(CardNameSource.allCases, id: \.self) { source in
-                            Text(source.rawValue).tag(source)
-                        }
-                    }
-                } header: {
-                    Text("译名翻译")
-                } footer: {
-                    Text("选择卡片名称的翻译来源")
-                }
-                
-                // 卡图语言
-                Section {
-                    Picker("卡图语言", selection: $settings.cardImageLanguage) {
-                        ForEach(CardImageLanguage.allCases, id: \.self) { language in
-                            Text(language.rawValue).tag(language)
-                        }
-                    }
-                } header: {
-                    Text("卡图语言")
-                } footer: {
-                    Text("选择显示的卡图语言版本")
-                }
-                
-                // 卡图清晰度
-                Section {
-                    Picker("详情页卡图", selection: $settings.detailImageQuality) {
-                        ForEach(DetailImageQuality.allCases, id: \.self) { quality in
-                            Text(quality.rawValue).tag(quality)
-                        }
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
-                } header: {
-                    Text("卡图清晰度")
-                } footer: {
-                    Text("原图为完整尺寸，高清为中等尺寸，缩略图加载更快")
-                }
-                
-                // 列表样式
-                Section {
-                    Picker("列表样式", selection: $settings.cardListStyle) {
-                        ForEach(CardListStyle.allCases, id: \.self) { style in
-                            Text(style.rawValue).tag(style)
-                        }
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
-                } header: {
-                    Text("显示样式")
-                } footer: {
-                    Text("简洁模式显示缩略图和摘要，详细模式显示完整效果")
-                }
-
-                // 外观
-                Section {
-                    Picker("主题模式", selection: $settings.appearanceMode) {
-                        ForEach(AppearanceMode.allCases) { mode in
-                            Text(mode.rawValue).tag(mode)
-                        }
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
-                } header: {
-                    Text("外观")
-                } footer: {
-                    Text("浅色为当前主题，可选择深色或跟随系统自动切换")
-                }
-                
-                // 缓存管理
-                Section {
-                    // 图片缓存
-                    HStack {
-                        Text("图片缓存")
-                        Spacer()
-                        Text(imageCacheSize)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Button(role: .destructive) {
-                        showClearImageCacheAlert = true
-                    } label: {
-                        Text("清除图片缓存")
-                    }
-                    
-                    // 卡片数据
-                    HStack {
-                        Text("卡片数据")
-                        Spacer()
-                        Text(cardDataSize)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Button(role: .destructive) {
-                        showClearCardDataAlert = true
-                    } label: {
-                        Text("清除卡片数据")
-                    }
-                } header: {
-                    Text("数据管理")
-                } footer: {
-                    Text("清除卡片数据后需要重新下载")
-                }
-
-                // 卡组备份
-                Section {
-                    Button {
-                        exportDeckBackup()
-                    } label: {
-                        HStack {
-                            Image(systemName: "square.and.arrow.up")
-                            Text("导出卡组备份")
-                        }
-                    }
-
-                    Button {
-                        showBackupImporter = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "square.and.arrow.down")
-                            Text("导入卡组备份")
-                        }
-                    }
-                } header: {
-                    Text("卡组备份")
-                } footer: {
-                    Text("备份包含卡组详情、概率计算场景、副卡组策略等信息")
-                }
-                
-                // 关于
-                Section("关于") {
-                    HStack {
-                        Text("版本")
-                        Spacer()
-                        Text("2.0")
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    HStack {
-                        Text("数据来源")
-                        Spacer()
-                        Link("ygocdb.com", destination: URL(string: "https://ygocdb.com")!)
-                            .foregroundColor(.blue)
-                    }
-                    
-                    HStack {
-                        Text("个人网站")
-                        Spacer()
-                        Link("ihex.dev", destination: URL(string: "https://ihex.dev")!)
-                            .foregroundColor(.blue)
-                    }
-                    
-                    if let lastCheck = settings.lastUpdateCheckTime {
-                        HStack {
-                            Text("上次检查更新")
-                            Spacer()
-                            Text(lastCheck, style: .relative)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
+                updateSection
+                cardDisplaySection
+                imageQualitySection
+                listStyleSection
+                appearanceSection
+                dataManagementSection
+                deckBackupSection
+                aboutSection
             }
             .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.inline)
@@ -346,6 +119,236 @@ struct SettingsView: View {
             }
         }
         .preferredColorScheme(settings.appearanceMode.colorScheme)
+    }
+
+    // MARK: - Sections
+
+    private var updateSection: some View {
+        Section {
+            Picker("网络模式", selection: $settings.networkMode) {
+                ForEach(NetworkMode.allCases, id: \.self) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
+            }
+            .pickerStyle(SegmentedPickerStyle())
+
+            if settings.networkMode == .online {
+                Picker("更新模式", selection: $settings.updateMode) {
+                    ForEach(UpdateMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+
+                if settings.updateMode == .automatic {
+                    Picker("更新策略", selection: $settings.autoUpdatePolicy) {
+                        ForEach(AutoUpdatePolicy.allCases, id: \.self) { policy in
+                            Text(policy.rawValue).tag(policy)
+                        }
+                    }
+                }
+            }
+
+            Button {
+                Task { await checkForUpdates() }
+            } label: {
+                HStack {
+                    Image(systemName: "arrow.clockwise")
+                    Text("检查更新")
+                    Spacer()
+                    if isCheckingForUpdates {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    } else if let result = updateCheckResult {
+                        Text(result)
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                }
+            }
+            .disabled(isCheckingForUpdates || isDownloading)
+            .tint(.green)
+
+            if isDownloading {
+                VStack(spacing: 8) {
+                    HStack {
+                        Text("正在下载更新...")
+                            .font(.subheadline)
+                        Spacer()
+                        Text("\(Int(downloadProgress * 100))%")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.blue)
+                    }
+                    ProgressView(value: downloadProgress)
+                        .progressViewStyle(LinearProgressViewStyle())
+                }
+                .animation(.default, value: downloadProgress)
+            }
+        } header: {
+            Text("更新设置")
+        } footer: {
+            if settings.networkMode == .offline {
+                Text("离线模式下仅支持手动更新，不会自动检查更新")
+            } else if settings.updateMode == .automatic {
+                Text("自动更新：进入应用时根据策略自动检查更新")
+            } else {
+                Text("手动更新：需要手动点击检查更新按钮")
+            }
+        }
+    }
+
+    private var cardDisplaySection: some View {
+        Section {
+            Picker("名称来源", selection: $settings.cardNameSource) {
+                ForEach(CardNameSource.allCases, id: \.self) { source in
+                    Text(source.rawValue).tag(source)
+                }
+            }
+            Picker("卡图语言", selection: $settings.cardImageLanguage) {
+                ForEach(CardImageLanguage.allCases, id: \.self) { language in
+                    Text(language.rawValue).tag(language)
+                }
+            }
+        } header: {
+            Text("名称和卡图")
+        } footer: {
+            Text("选择卡片名称来源和卡图语言版本")
+        }
+    }
+
+    private var imageQualitySection: some View {
+        Section {
+            Picker("详情页卡图", selection: $settings.detailImageQuality) {
+                ForEach(DetailImageQuality.allCases, id: \.self) { quality in
+                    Text(quality.rawValue).tag(quality)
+                }
+            }
+            .pickerStyle(SegmentedPickerStyle())
+        } header: {
+            Text("卡图清晰度")
+        } footer: {
+            Text("原图为完整尺寸，高清为中等尺寸，缩略图加载更快")
+        }
+    }
+
+    private var listStyleSection: some View {
+        Section {
+            Picker("列表样式", selection: $settings.cardListStyle) {
+                ForEach(CardListStyle.allCases, id: \.self) { style in
+                    Text(style.rawValue).tag(style)
+                }
+            }
+            .pickerStyle(SegmentedPickerStyle())
+        } header: {
+            Text("显示样式")
+        } footer: {
+            Text("简洁模式显示缩略图和摘要，详细模式显示完整效果")
+        }
+    }
+
+    private var appearanceSection: some View {
+        Section {
+            Picker("主题模式", selection: $settings.appearanceMode) {
+                ForEach(AppearanceMode.allCases) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
+            }
+            .pickerStyle(SegmentedPickerStyle())
+        } header: {
+            Text("外观")
+        } footer: {
+            Text("浅色为当前主题，可选择深色或跟随系统自动切换")
+        }
+    }
+
+    private var dataManagementSection: some View {
+        Section {
+            HStack {
+                Text("图片缓存")
+                Spacer()
+                Text(imageCacheSize)
+                    .foregroundColor(.secondary)
+            }
+            Button(role: .destructive) {
+                showClearImageCacheAlert = true
+            } label: {
+                Text("清除图片缓存")
+            }
+            HStack {
+                Text("卡片数据")
+                Spacer()
+                Text(cardDataSize)
+                    .foregroundColor(.secondary)
+            }
+            Button(role: .destructive) {
+                showClearCardDataAlert = true
+            } label: {
+                Text("清除卡片数据")
+            }
+        } header: {
+            Text("数据管理")
+        } footer: {
+            Text("清除卡片数据后需要重新下载")
+        }
+    }
+
+    private var deckBackupSection: some View {
+        Section {
+            Button {
+                exportDeckBackup()
+            } label: {
+                HStack {
+                    Image(systemName: "square.and.arrow.up")
+                    Text("导出卡组备份")
+                }
+            }
+            Button {
+                showBackupImporter = true
+            } label: {
+                HStack {
+                    Image(systemName: "square.and.arrow.down")
+                    Text("导入卡组备份")
+                }
+            }
+        } header: {
+            Text("卡组备份")
+        } footer: {
+            Text("备份包含卡组详情、概率计算场景、副卡组策略等信息")
+        }
+    }
+
+    private var aboutSection: some View {
+        Section("关于") {
+            HStack {
+                Text("版本")
+                Spacer()
+                Text("3.0")
+                    .foregroundColor(.secondary)
+            }
+
+            HStack {
+                Text("数据来源")
+                Spacer()
+                Link("ygocdb.com", destination: URL(string: "https://ygocdb.com")!)
+                    .foregroundColor(.blue)
+            }
+
+            HStack {
+                Text("个人网站")
+                Spacer()
+                Link("ihex.dev", destination: URL(string: "https://ihex.dev")!)
+                    .foregroundColor(.blue)
+            }
+
+            if let lastCheck = settings.lastUpdateCheckTime {
+                HStack {
+                    Text("上次检查更新")
+                    Spacer()
+                    Text(lastCheck, style: .relative)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
     }
     
     private func updateSizes() async {

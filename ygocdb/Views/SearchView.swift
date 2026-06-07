@@ -30,7 +30,7 @@ struct SearchView: View {
                 }
             }
             .navigationTitle("游戏王查卡器")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 12) {
@@ -41,16 +41,6 @@ struct SearchView: View {
                             Image(systemName: "sparkles")
                                 .foregroundColor(.orange)
                         }
-
-                        // 组卡器按钮
-                        NavigationLink(destination: DeckBuilderListView()) {
-                            Image(systemName: "rectangle.stack.fill")
-                                .foregroundColor(.blue)
-                        }
-
-                        // 竖向分割线
-                        Divider()
-                            .frame(height: 20)
 
                         // 设置按钮
                         Button {
@@ -95,6 +85,7 @@ struct SearchView: View {
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())
+        .modifier(SearchTabBarModifier(isSearching: !viewModel.searchText.isEmpty))
     }
 }
 
@@ -211,6 +202,73 @@ struct CardSearchContentView: View {
     var hasMore: Bool {
         displayCount < filteredResults.count
     }
+
+    private let monsterCategoryTags: [(String, CardType)] = [
+        ("通常", .normal),
+        ("效果", .effect),
+        ("融合", .fusion),
+        ("仪式", .ritual),
+        ("同调", .synchro),
+        ("超量", .xyz),
+        ("链接", .link)
+    ]
+
+    private let monsterAbilityTags: [(String, CardType)] = [
+        ("灵摆", .pendulum),
+        ("调整", .tuner),
+        ("反转", .flip),
+        ("卡通", .toon),
+        ("灵魂", .spirit),
+        ("同盟", .union),
+        ("二重", .dual)
+    ]
+
+    private let spellTypeTags: [(String, CardType)] = [
+        ("通常魔法", CardType(rawValue: 0)),
+        ("速攻魔法", .quickPlay),
+        ("永续魔法", .continuous),
+        ("装备魔法", .equip),
+        ("场地魔法", .field),
+        ("仪式魔法", .ritual)
+    ]
+
+    private let trapTypeTags: [(String, CardType)] = [
+        ("通常陷阱", CardType(rawValue: 0)),
+        ("永续陷阱", .continuous),
+        ("反击陷阱", .counter)
+    ]
+
+    private var activeFilterTags: [String] {
+        var tags: [String] = []
+
+        for (name, type) in monsterCategoryTags where filter.selectedMonsterCategories.contains(type) {
+            tags.append(name)
+        }
+        for (name, type) in monsterAbilityTags where filter.selectedMonsterAbilities.contains(type) {
+            tags.append(name)
+        }
+        for level in filter.selectedLevels.sorted() {
+            tags.append("\(CardFilter.levelDisplayTitle(for: level))星")
+        }
+        for race in filter.selectedRaces.sorted(by: { $0.rawValue < $1.rawValue }) {
+            tags.append(race.displayName)
+        }
+        for attr in filter.selectedAttributes.sorted(by: { $0.rawValue < $1.rawValue }) {
+            tags.append(attr.displayName)
+        }
+        for (name, type) in spellTypeTags where filter.selectedSpellTypes.contains(type) {
+            tags.append(name)
+        }
+        for (name, type) in trapTypeTags where filter.selectedTrapTypes.contains(type) {
+            tags.append(name)
+        }
+
+        return tags
+    }
+
+    private var previewFilterTags: [String] {
+        Array(activeFilterTags.prefix(8))
+    }
     
     var body: some View {
         // 预先计算筛选结果，避免在视图中多次重复计算
@@ -220,107 +278,178 @@ struct CardSearchContentView: View {
         let isEmpty = results.isEmpty
         let totalCount = results.count
         
-        return List {
-            if isEmpty {
-                // 空状态提示
-                EmptyStateRow(
-                    searchText: viewModel.searchText,
-                    hasActiveFilters: filter.hasActiveFilters
-                )
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets())
-            } else {
-                // 卡片列表
-                ForEach(cards) { card in
-                    NavigationLink(destination: CardDetailView(card: card)) {
-                        CardRowView(card: card)
-                    }
-                    .contextMenu {
-                        Button {
-                            copyCardInfo(card)
-                        } label: {
-                            Label("复制卡片信息", systemImage: "doc.on.doc")
-                        }
-                    }
-                }
-                
-                // 加载更多按钮
-                if showMore {
-                    Button {
-                        displayCount += pageSize
-                    } label: {
-                        Text("加载更多 (\(totalCount - displayCount) 张)")
-                            .foregroundColor(.blue)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .listRowSeparator(.hidden)
-                }
-                
-                // 底部统计
-                Text("共 \(totalCount) 张卡片")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .listRowSeparator(.hidden)
-            }
-        }
-        .listStyle(.plain)
-        .id(listId)
-        .animation(.easeInOut(duration: 0.2), value: isEmpty)
-        .overlay(alignment: .center) {
-            // 加载指示器
-            if viewModel.isSearching {
-                ProgressView()
-                    .padding()
-                    .background(Color(UIColor.systemBackground).opacity(0.9))
-                    .cornerRadius(10)
-                    .shadow(radius: 5)
-                    .allowsHitTesting(false)
-            }
-        }
-        .searchable(text: $viewModel.searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "搜索卡片...") {
-            // 搜索历史建议（仅在搜索框为空时显示）
-            if viewModel.searchText.isEmpty {
-                let history = AppSettings.shared.searchHistory
-                if !history.isEmpty {
-                    Section {
-                        ForEach(history, id: \.self) { item in
+        return VStack(spacing: 0) {
+            VStack(spacing: 6) {
+                HStack(spacing: 8) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        TextField("搜索卡片...", text: $viewModel.searchText)
+                            .font(.body)
+                            .textInputAutocapitalization(.never)
+                            .disableAutocorrection(true)
+                            .submitLabel(.search)
+                            .onSubmit {
+                                guard !viewModel.searchText.isEmpty else { return }
+                                AppSettings.shared.addSearchHistory(viewModel.searchText)
+                            }
+
+                        if !viewModel.searchText.isEmpty {
                             Button {
-                                // 点击历史记录：填充搜索词、保存历史、收起键盘
-                                viewModel.searchText = item
-                                AppSettings.shared.addSearchHistory(item)
-                                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                viewModel.searchText = ""
                             } label: {
-                                HStack {
-                                    Label(item, systemImage: "clock.arrow.circlepath")
-                                        .foregroundColor(.primary)
-                                    Spacer()
-                                }
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.secondary)
                             }
-                            .swipeActions(edge: .trailing) {
-                                Button(role: .destructive) {
-                                    AppSettings.shared.removeSearchHistory(item)
-                                } label: {
-                                    Image(systemName: "trash")
-                                }
-                            }
+                            .buttonStyle(.plain)
                         }
-                        
-                        Button(role: .destructive) {
-                            AppSettings.shared.clearSearchHistory()
+                    }
+                    .padding(.horizontal, 10)
+                    .frame(height: 36)
+                    .background(Color(UIColor.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                    Button {
+                        showFilter = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: filter.hasActiveFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                        }
+                        .frame(width: 36, height: 36)
+                        .background(filter.hasActiveFilters ? Color.blue.opacity(0.14) : Color.gray.opacity(0.12))
+                        .foregroundColor(filter.hasActiveFilters ? .blue : .primary)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                if filter.hasActiveFilters {
+                    HStack(spacing: 8) {
+                        Text("已选 \(activeFilterTags.count) 项")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                filter.reset()
+                            }
                         } label: {
-                            Label("清空历史记录", systemImage: "trash")
+                            Text("清空")
+                                .font(.caption.weight(.medium))
                                 .foregroundColor(.red)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(Color.red.opacity(0.12))
+                                .clipShape(Capsule())
                         }
-                    } header: {
-                        Text("搜索历史")
+                        .buttonStyle(.plain)
+
+                        Spacer(minLength: 0)
                     }
                 }
+
+                if filter.hasActiveFilters {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(Array(previewFilterTags.enumerated()), id: \.offset) { _, tag in
+                                Text(tag)
+                                    .font(.caption2)
+                                    .foregroundColor(.blue)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .background(Color.blue.opacity(0.10))
+                                    .overlay(
+                                        Capsule()
+                                            .stroke(Color.blue.opacity(0.25), lineWidth: 1)
+                                    )
+                                    .clipShape(Capsule())
+                            }
+
+                            if activeFilterTags.count > previewFilterTags.count {
+                                Text("+\(activeFilterTags.count - previewFilterTags.count)")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.gray.opacity(0.14))
+                                    .clipShape(Capsule())
+                            }
+                        }
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
             }
-        }
-        .onSubmit(of: .search) {
-            // 搜索提交时保存历史记录
-            AppSettings.shared.addSearchHistory(viewModel.searchText)
+            .padding(.horizontal, 12)
+            .padding(.top, 6)
+            .padding(.bottom, filter.hasActiveFilters ? 8 : 6)
+            .background(Color(UIColor.systemBackground))
+            .overlay(alignment: .bottom) {
+                Divider()
+            }
+            .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+            .animation(.easeInOut(duration: 0.2), value: filter.hasActiveFilters)
+
+            List {
+                if isEmpty {
+                    // 空状态提示
+                    EmptyStateRow(
+                        searchText: viewModel.searchText,
+                        hasActiveFilters: filter.hasActiveFilters
+                    )
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
+                } else {
+                    // 卡片列表
+                    ForEach(cards) { card in
+                        NavigationLink(destination: CardDetailView(card: card)) {
+                            CardRowView(card: card)
+                        }
+                        .contextMenu {
+                            Button {
+                                copyCardInfo(card)
+                            } label: {
+                                Label("复制卡片信息", systemImage: "doc.on.doc")
+                            }
+                        }
+                    }
+
+                    // 加载更多按钮
+                    if showMore {
+                        Button {
+                            displayCount += pageSize
+                        } label: {
+                            Text("加载更多 (\(totalCount - displayCount) 张)")
+                                .foregroundColor(.blue)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .listRowSeparator(.hidden)
+                    }
+
+                    // 底部统计
+                    Text("共 \(totalCount) 张卡片")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .listRowSeparator(.hidden)
+                }
+            }
+            .listStyle(.plain)
+            .id(listId)
+            .animation(.easeInOut(duration: 0.2), value: isEmpty)
+            .overlay(alignment: .center) {
+                // 加载指示器
+                if viewModel.isSearching {
+                    ProgressView()
+                        .padding()
+                        .background(Color(UIColor.systemBackground).opacity(0.9))
+                        .cornerRadius(10)
+                        .shadow(radius: 5)
+                        .allowsHitTesting(false)
+                }
+            }
         }
         .onChange(of: viewModel.searchText) { newValue in
             // 搜索词变化时重置分页（带动画）
@@ -342,20 +471,6 @@ struct CardSearchContentView: View {
             // 筛选条件变化时重置分页
             withAnimation(.easeInOut(duration: 0.2)) {
                 displayCount = pageSize
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button {
-                    showFilter = true
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: filter.hasActiveFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                        Text("筛选")
-                            .font(.caption)
-                    }
-                    .foregroundColor(filter.hasActiveFilters ? .blue : .primary)
-                }
             }
         }
     }

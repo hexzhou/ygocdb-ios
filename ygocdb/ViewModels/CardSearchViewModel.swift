@@ -82,6 +82,7 @@ class CardSearchViewModel: ObservableObject {
             
         repository.$cards
             .receive(on: RunLoop.main)
+            .removeDuplicates { $0.count == $1.count }
             .sink { [weak self] cards in
                 // 当卡片数据变化时，如果当前有搜索，重新执行搜索
                 if let self = self, !self.searchText.isEmpty {
@@ -131,6 +132,10 @@ class CardSearchViewModel: ObservableObject {
             hasLocalData = repository.hasLocalData
             isDataLoaded = repository.isLoaded
         } catch {
+            if error.isTaskCancellation || Task.isCancelled {
+                return
+            }
+
             errorMessage = "加载本地数据失败: \(error.localizedDescription)"
             showError = true
         }
@@ -178,6 +183,12 @@ class CardSearchViewModel: ObservableObject {
             logger.info("🎉 全部完成!")
             
         } catch {
+            if error.isTaskCancellation || Task.isCancelled {
+                isDownloading = false
+                downloadPhase = .idle
+                return
+            }
+
             isDownloading = false
             downloadPhase = .idle
             let errorDesc = error.localizedDescription

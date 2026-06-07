@@ -13,15 +13,15 @@ struct CardFullDetail: Codable {
     let cid: Int
     /// 卡片密码（ID）
     let id: Int
-    /// 中文名称（YGOPro 译名）
+    /// YGOPro 中文名称
     let cnName: String?
     /// 官方简体中文名称
     let scName: String?
     /// Master Duel 中文名称
     let mdName: String?
-    /// NWBBS 论坛译名
+    /// NWBBS 论坛名称
     let nwbbsN: String?
-    /// CNOCG 论坛译名
+    /// CNOCG 论坛名称
     let cnocgN: String?
     /// 日文读音
     let jpRuby: String?

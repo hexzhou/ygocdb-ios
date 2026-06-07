@@ -275,6 +275,15 @@ extension Card {
     var cardOT: CardOT {
         CardOT(rawValue: data?.ot ?? 0)
     }
+
+    /// 发行范围显示文本
+    var otDisplay: String {
+        let ot = cardOT
+        var parts: [String] = []
+        if ot.contains(.ocg) { parts.append("OCG") }
+        if ot.contains(.tcg) { parts.append("TCG") }
+        return parts.isEmpty ? "未知" : parts.joined(separator: "|")
+    }
     
     /// 获取 type 原始值
     var type: Int {

@@ -136,139 +136,45 @@ struct PreReleaseCardDetailView: View {
     @State private var toastMessage: String?
     @State private var loadedImage: UIImage?
     @State private var showShareSheet = false
+    @State private var showFullImage = false
+
+    private var normalizedDesc: String {
+        card.desc.replacingOccurrences(of: "\\r\\n", with: "\n")
+    }
+
+    private var statusColor: Color {
+        card.created ? .red : .orange
+    }
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                // 卡图
-                CachedAsyncImage(
-                    url: card.imageURL,
-                    cacheKey: "pre-\(card.id)-detail"
-                ) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .shadow(radius: 10)
-                        .onAppear {
-                            Task {
-                                if let url = card.imageURL {
-                                    loadedImage = try? await ImageCache.shared.downloadAndCache(from: url)
-                                }
-                            }
-                        }
-                } placeholder: {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.2))
-                        .aspectRatio(0.69, contentMode: .fit)
-                        .overlay(
-                            ProgressView()
-                        )
-                }
-                .frame(maxWidth: 300)
-                .contextMenu {
-                    Button {
-                        saveImageToAlbum()
-                    } label: {
-                        Label("保存到相册", systemImage: "square.and.arrow.down")
-                    }
-                    
-                    Button {
-                        showShareSheet = true
-                    } label: {
-                        Label("分享图片", systemImage: "square.and.arrow.up")
-                    }
-                }
-                
-                // 卡名和状态
-                VStack(spacing: 8) {
-                    HStack(spacing: 8) {
-                        Text(card.name)
-                            .font(.title)
-                            .fontWeight(.bold)
-                            .multilineTextAlignment(.center)
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 20) {
+                    topSummarySection(availableWidth: max(geometry.size.width - 32, 0))
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("效果")
+                            .font(.headline)
+
+                        Text(normalizedDesc)
+                            .font(.body)
                             .textSelection(.enabled)
-                        
-                        if let label = card.statusLabel {
-                            Text(label)
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(card.created ? Color.red : Color.orange)
-                                .cornerRadius(6)
-                        }
                     }
-                }
-                
-                Divider()
-                
-                // 卡片信息（与正式卡一致）
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("卡片信息")
-                        .font(.headline)
-                    
-                    Text(card.overallString)
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(Color(UIColor.secondarySystemBackground))
+                    )
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                
-                Divider()
-                
-                // 卡片效果（与正式卡一致）
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("效果")
-                        .font(.headline)
-                    
-                    Text(card.desc.replacingOccurrences(of: "\\r\\n", with: "\n"))
-                        .font(.body)
-                        .textSelection(.enabled)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                
-                Divider()
-                
-                // 卡片密码（与正式卡一致）
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("卡片密码")
-                        .font(.headline)
-                    
-                    Text(String(format: "%09d", card.id))
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundColor(.secondary)
-                        .textSelection(.enabled)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                
-                Divider()
-                
-                // 更新信息
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("更新信息")
-                        .font(.headline)
-                    
-                    HStack {
-                        Text("创建时间:")
-                            .foregroundColor(.secondary)
-                        Text(card.createDateString)
-                    }
-                    .font(.body)
-                    
-                    HStack {
-                        Text("更新时间:")
-                            .foregroundColor(.secondary)
-                        Text(card.updateDateString)
-                    }
-                    .font(.body)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
             }
-            .padding()
+            .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
         }
         .navigationTitle(card.name)
         .navigationBarTitleDisplayMode(.inline)
+        .hideTabBar()
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
@@ -296,13 +202,156 @@ struct PreReleaseCardDetailView: View {
                 ShareSheet(items: [jpegImage])
             }
         }
+        .fullScreenCover(isPresented: $showFullImage) {
+            FullImageView(
+                url: card.imageURL,
+                cacheKey: "pre-\(card.id)-full",
+                initialImage: loadedImage
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func topSummarySection(availableWidth: CGFloat) -> some View {
+        let imageWidth = min(max(availableWidth * 0.42, 150), 220)
+
+        if availableWidth < 520 {
+            VStack(alignment: .leading, spacing: 16) {
+                detailImage(width: imageWidth)
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                cardInfoSection
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color(UIColor.secondarySystemBackground))
+            )
+        } else {
+            HStack(alignment: .top, spacing: 16) {
+                detailImage(width: min(imageWidth, 180))
+                cardInfoSection
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color(UIColor.secondarySystemBackground))
+            )
+        }
+    }
+
+    private func detailImage(width: CGFloat) -> some View {
+        CachedAsyncImage(
+            url: card.imageURL,
+            cacheKey: "pre-\(card.id)-detail"
+        ) { image in
+            image
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .shadow(radius: 10)
+                .onAppear {
+                    Task {
+                        if let url = card.imageURL {
+                            loadedImage = try? await ImageCache.shared.downloadAndCache(from: url)
+                        }
+                    }
+                }
+        } placeholder: {
+            Rectangle()
+                .fill(Color.gray.opacity(0.2))
+                .aspectRatio(0.69, contentMode: .fit)
+                .overlay(
+                    ProgressView()
+                )
+        }
+        .frame(width: width)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            showFullImage = true
+        }
+        .overlay(alignment: .bottomTrailing) {
+            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                .font(.caption2.weight(.bold))
+                .foregroundColor(.white)
+                .padding(6)
+                .background(Color.black.opacity(0.45))
+                .clipShape(Circle())
+                .padding(6)
+        }
+        .contextMenu {
+            Button {
+                saveImageToAlbum()
+            } label: {
+                Label("保存到相册", systemImage: "square.and.arrow.down")
+            }
+
+            Button {
+                showShareSheet = true
+            } label: {
+                Label("分享图片", systemImage: "square.and.arrow.up")
+            }
+        }
+    }
+
+    private var cardInfoSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 8) {
+                Text(card.name)
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .multilineTextAlignment(.leading)
+                    .textSelection(.enabled)
+
+                Spacer(minLength: 0)
+
+                if let label = card.statusLabel {
+                    Text(label)
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(statusColor)
+                        .cornerRadius(6)
+                }
+            }
+
+            Text(card.overallString)
+                .font(.subheadline)
+                .foregroundColor(.blue)
+                .textSelection(.enabled)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                metaRow(label: "卡密", value: String(format: "%09d", card.id), monospaced: true)
+                metaRow(label: "创建", value: card.createDateString)
+                metaRow(label: "更新", value: card.updateDateString)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func metaRow(label: String, value: String, monospaced: Bool = false) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text("\(label):")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .frame(width: 34, alignment: .leading)
+
+            Text(value)
+                .font(monospaced ? .system(.caption, design: .monospaced) : .caption)
+                .foregroundColor(.secondary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
     
     /// 复制卡片信息
     private func copyCardInfo() {
         var info = "【\(card.name)】\n"
         info += "\(card.overallString)\n\n"
-        info += "【效果】\n\(card.desc.replacingOccurrences(of: "\\r\\n", with: "\n"))"
+        info += "【效果】\n\(normalizedDesc)"
         
         UIPasteboard.general.string = info
         showToast("\(card.name) 复制成功")

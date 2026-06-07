@@ -1,0 +1,4 @@
+interface:
+  display_name: "Unsigned IPA Packager"
+  short_description: "Archive iOS app and build an unsigned IPA"
+  default_prompt: "Use $xcode-unsigned-ipa to archive the current Xcode project and package an unsigned IPA."

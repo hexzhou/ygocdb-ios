@@ -11,17 +11,15 @@ import UIKit
 /// 卡组列表视图
 struct DeckBuilderListView: View {
     @StateObject private var viewModel = DeckBuilderViewModel()
-    @State private var showCreateDeck = false
     @State private var showImportDeck = false
-    @State private var newDeckName = ""
-    @State private var editingDeck: Deck?
+    @State private var activeNameDialog: DeckNameDialog?
 
     var body: some View {
         ZStack {
             Group {
                 if viewModel.decks.isEmpty {
                     EmptyDeckListView {
-                        showCreateDeck = true
+                        activeNameDialog = .create
                     }
                 } else {
                     List {
@@ -37,12 +35,18 @@ struct DeckBuilderListView: View {
                                 }
 
                                 Button {
-                                    editingDeck = deck
-                                    newDeckName = deck.name
+                                    activeNameDialog = .rename(deck)
                                 } label: {
                                     Label("重命名", systemImage: "pencil")
                                 }
                                 .tint(.blue)
+
+                                Button {
+                                    activeNameDialog = .duplicate(deck)
+                                } label: {
+                                    Label("复制", systemImage: "doc.on.doc")
+                                }
+                                .tint(.green)
                             }
                         }
                     }
@@ -51,31 +55,31 @@ struct DeckBuilderListView: View {
             }
             .id(viewModel.decks.isEmpty)
 
-            if showCreateDeck {
-                DeckNameInputSheet(
-                    title: "创建卡组",
-                    message: "请输入新卡组的名称",
-                    placeholder: "卡组名称",
-                    initialName: "",
-                    confirmTitle: "创建",
-                    useSheetBackgroundClear: false,
-                    isPresented: $showCreateDeck
-                ) { name in
-                    if !name.isEmpty {
-                        viewModel.createDeck(name: name)
-                    }
-                }
+            if let dialog = activeNameDialog {
+                deckNameDialog(dialog)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("组卡器")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             viewModel.loadDecks()
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 12) {
+                    // 对战模拟按钮
+                    NavigationLink {
+                        DeckBattleListView()
+                    } label: {
+                        if #available(iOS 16.0, *) {
+                            Image(systemName: "figure.fencing")
+                        } else {
+                            Image(systemName: "person.2.fill")
+                        }
+                    }
+                    .accessibilityLabel("对战模拟")
+
                     // 导入按钮
                     Button {
                         showImportDeck = true
@@ -85,28 +89,10 @@ struct DeckBuilderListView: View {
 
                     // 创建按钮
                     Button {
-                        showCreateDeck = true
-                        newDeckName = ""
+                        activeNameDialog = .create
                     } label: {
                         Image(systemName: "plus")
                     }
-                }
-            }
-        }
-        .sheet(item: $editingDeck) { deck in
-            DeckNameInputSheet(
-                title: "重命名卡组",
-                message: "请输入新的卡组名称",
-                placeholder: "卡组名称",
-                initialName: deck.name,
-                confirmTitle: "确定",
-                isPresented: .init(
-                    get: { editingDeck != nil },
-                    set: { if !$0 { editingDeck = nil } }
-                )
-            ) { name in
-                if !name.isEmpty {
-                    viewModel.renameDeck(deck, newName: name)
                 }
             }
         }
@@ -120,7 +106,66 @@ struct DeckBuilderListView: View {
         .sheet(isPresented: $showImportDeck) {
             DeckImportView(viewModel: viewModel)
         }
+
     }
+
+    @ViewBuilder
+    private func deckNameDialog(_ dialog: DeckNameDialog) -> some View {
+        switch dialog {
+        case .create:
+            DeckNameInputSheet(
+                title: "创建卡组",
+                message: "请输入新卡组的名称",
+                placeholder: "卡组名称",
+                initialName: "",
+                confirmTitle: "创建",
+                isPresented: nameDialogPresentedBinding
+            ) { name in
+                if !name.isEmpty {
+                    viewModel.createDeck(name: name)
+                }
+            }
+        case let .rename(deck):
+            DeckNameInputSheet(
+                title: "重命名卡组",
+                message: "请输入新的卡组名称",
+                placeholder: "卡组名称",
+                initialName: deck.name,
+                confirmTitle: "确定",
+                isPresented: nameDialogPresentedBinding
+            ) { name in
+                if !name.isEmpty {
+                    viewModel.renameDeck(deck, newName: name)
+                }
+            }
+        case let .duplicate(deck):
+            DeckNameInputSheet(
+                title: "复制卡组",
+                message: "可以调整复制后的卡组名称；不修改则使用默认名称。",
+                placeholder: "卡组名称",
+                initialName: "\(deck.name)-复制",
+                confirmTitle: "复制",
+                isPresented: nameDialogPresentedBinding
+            ) { name in
+                let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+                let fallbackName = "\(deck.name)-复制"
+                viewModel.duplicateDeck(deck, newName: trimmedName.isEmpty ? fallbackName : trimmedName)
+            }
+        }
+    }
+
+    private var nameDialogPresentedBinding: Binding<Bool> {
+        .init(
+            get: { activeNameDialog != nil },
+            set: { if !$0 { activeNameDialog = nil } }
+        )
+    }
+}
+
+private enum DeckNameDialog {
+    case create
+    case rename(Deck)
+    case duplicate(Deck)
 }
 
 
@@ -186,14 +231,13 @@ struct EmptyDeckListView: View {
     }
 }
 
-/// 卡组名称输入对话框（兼容 iOS 15，卡片式设计）
+/// 卡组名称输入弹窗
 struct DeckNameInputSheet: View {
     let title: String
     let message: String
     let placeholder: String
     let initialName: String
     let confirmTitle: String
-    let useSheetBackgroundClear: Bool
     @Binding var isPresented: Bool
     let onConfirm: (String) -> Void
 
@@ -206,7 +250,6 @@ struct DeckNameInputSheet: View {
         placeholder: String,
         initialName: String,
         confirmTitle: String,
-        useSheetBackgroundClear: Bool = true,
         isPresented: Binding<Bool>,
         onConfirm: @escaping (String) -> Void
     ) {
@@ -215,19 +258,16 @@ struct DeckNameInputSheet: View {
         self.placeholder = placeholder
         self.initialName = initialName
         self.confirmTitle = confirmTitle
-        self.useSheetBackgroundClear = useSheetBackgroundClear
         _isPresented = isPresented
         self.onConfirm = onConfirm
     }
 
     var body: some View {
         ZStack {
-            // 透明背景（点击可收起键盘）
-            Color.clear
+            Color.black.opacity(0.18)
                 .ignoresSafeArea()
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    // 点击背景收起键盘
                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 }
 
@@ -300,11 +340,7 @@ struct DeckNameInputSheet: View {
             .padding(.horizontal, 50)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background {
-            if useSheetBackgroundClear {
-                SheetBackgroundClearView()
-            }
-        }
+        .transition(.opacity)
         .onAppear {
             name = initialName
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -312,19 +348,6 @@ struct DeckNameInputSheet: View {
             }
         }
     }
-}
-
-private struct SheetBackgroundClearView: UIViewRepresentable {
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView()
-        DispatchQueue.main.async {
-            view.superview?.backgroundColor = .clear
-            view.superview?.superview?.backgroundColor = .clear
-        }
-        return view
-    }
-
-    func updateUIView(_ uiView: UIView, context: Context) {}
 }
 
 #Preview {

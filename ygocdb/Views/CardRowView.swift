@@ -73,8 +73,8 @@ struct DetailedCardRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // 第一行：卡图、卡片名称、卡密
-            HStack(spacing: 10) {
+            // 头部：卡图 + 卡片信息（卡名、类型、攻防）
+            HStack(alignment: .top, spacing: 10) {
                 // 卡图缩略图
                 CachedAsyncImage(
                     url: settings.getImageURL(for: card, size: .thumb2),
@@ -90,41 +90,53 @@ struct DetailedCardRow: View {
                             ProgressView()
                         )
                 }
-                .frame(width: 44, height: 64)
-                .clipShape(RoundedRectangle(cornerRadius: 3))
+                .frame(width: 60, height: 87)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
 
-                // 卡片名称
-                Text(settings.getDisplayName(for: card))
-                    .font(.headline)
-                    .lineLimit(1)
+                // 卡片信息
+                VStack(alignment: .leading, spacing: 4) {
+                    // 卡名
+                    HStack {
+                        Text(settings.getDisplayName(for: card))
+                            .font(.headline)
+                            .lineLimit(1)
 
-                Spacer()
+                        Spacer()
 
-                // 卡密
-                Text(String(format: "%08d", card.id))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .monospacedDigit()
+                        // 卡密
+                        Text(String(format: "%08d", card.id))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .monospacedDigit()
+                    }
+
+                    // 类型、星级、攻防等
+                    Text(card.typesDisplay)
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
             }
-
-            // 第二行：卡片信息（类型、星级、攻防等）
-            Text(card.typesDisplay)
-                .font(.caption)
-                .foregroundColor(.blue)
 
             // 灵摆效果（如果有）
             if !card.pdescDisplay.isEmpty {
-                Text("【灵摆效果】\(card.pdescDisplay)")
-                    .font(.subheadline)
-                    .foregroundColor(.orange)
-                    .lineLimit(nil)
-                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("【灵摆效果】")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.teal)
+                    Text(card.pdescDisplay)
+                        .font(.subheadline)
+                        .foregroundColor(.primary.opacity(0.85))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Divider()
             }
 
             // 卡片效果
             Text(card.descDisplay)
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(.primary.opacity(0.8))
                 .lineLimit(nil)
                 .fixedSize(horizontal: false, vertical: true)
         }

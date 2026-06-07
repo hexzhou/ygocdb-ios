@@ -748,9 +748,9 @@ private struct StrategyCard: View {
 
     @ViewBuilder
     private func cardThumbnail(_ cardId: Int) -> some View {
-        if let url = settings.cardImageLanguage.getImageURL(for: cardId, size: .thumb) {
+        if let url = settings.cardImageLanguage.getImageURL(for: cardId, size: .thumb2) {
             if #available(iOS 16.0, *) {
-                CachedAsyncImage(url: url, cacheKey: "side-strategy-thumb-\(cardId)") { image in
+                CachedAsyncImage(url: url, cacheKey: "side-strategy-thumb2-\(cardId)") { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fit)
@@ -767,7 +767,7 @@ private struct StrategyCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: 4))
                 .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
             } else {
-                CachedAsyncImage(url: url, cacheKey: "side-strategy-thumb-\(cardId)") { image in
+                CachedAsyncImage(url: url, cacheKey: "side-strategy-thumb2-\(cardId)") { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fit)
@@ -1169,8 +1169,8 @@ private struct SideboardStrategyEditor: View {
 
     @ViewBuilder
     private func cardThumbnail(_ cardId: Int) -> some View {
-        if let url = settings.cardImageLanguage.getImageURL(for: cardId, size: .thumb) {
-            CachedAsyncImage(url: url, cacheKey: "side-strategy-thumb-\(cardId)") { image in
+        if let url = settings.cardImageLanguage.getImageURL(for: cardId, size: .thumb2) {
+            CachedAsyncImage(url: url, cacheKey: "side-strategy-thumb2-\(cardId)") { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -1364,8 +1364,8 @@ private struct CardCountPickerSheet: View {
 
     @ViewBuilder
     private func cardThumbnail(_ cardId: Int) -> some View {
-        if let url = settings.cardImageLanguage.getImageURL(for: cardId, size: .thumb) {
-            CachedAsyncImage(url: url, cacheKey: "side-strategy-thumb-\(cardId)") { image in
+        if let url = settings.cardImageLanguage.getImageURL(for: cardId, size: .thumb2) {
+            CachedAsyncImage(url: url, cacheKey: "side-strategy-thumb2-\(cardId)") { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fit)

@@ -10,11 +10,11 @@
 struct Card: Codable, Identifiable {
     let cid: Int        // 官方数据库唯一标识符
     let id: Int         // 卡片密码
-    let cnName: String? // 中文名称（YGOPro 译名）
+    let cnName: String? // YGOPro 中文名称
     let scName: String? // 官方简体中文名称
     let mdName: String? // Master Duel 中文名称
-    let nwbbsN: String? // NWBBS 论坛译名
-    let cnocgN: String? // CNOCG 论坛译名
+    let nwbbsN: String? // NWBBS 论坛名称
+    let cnocgN: String? // CNOCG 论坛名称
     let jpRuby: String? // 日文读音
     let jpName: String? // 日文名称
     let enName: String? // 英文名称
@@ -145,7 +145,7 @@ enum AutoUpdatePolicy: String {
 
 ### CardNameSource
 
-译名来源选项。
+名称来源选项。
 
 ```swift
 enum CardNameSource: String {

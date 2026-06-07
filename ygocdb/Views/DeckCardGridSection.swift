@@ -20,8 +20,7 @@ struct DeckCardGridSection: View {
     @State private var selectedCard: Card?
     @State private var selectedPreReleaseCard: PreReleaseCard?
     @State private var showMissingDataAlert = false
-
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 8)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     init(
         items: [DeckCardItem],
@@ -45,16 +44,11 @@ struct DeckCardGridSection: View {
     }
 
     var body: some View {
-        let sortedItems = items.sorted {
-            if $0.cardId == $1.cardId {
-                return $0.id.uuidString < $1.id.uuidString
-            }
-            return $0.cardId < $1.cardId
-        }
-        LazyVGrid(columns: columns, spacing: 4) {
+        LazyVGrid(columns: columns, spacing: gridSpacing) {
             ForEach(sortedItems) { item in
                 let cardId = item.cardId
                 let itemId = item.id
+
                 CardGridItem(
                     cardId: cardId,
                     onTap: { card in
@@ -105,7 +99,7 @@ struct DeckCardGridSection: View {
                 }
             }
         }
-        .padding(.horizontal)
+        .padding(.horizontal, gridHorizontalPadding)
         .sheet(item: $selectedCard) { card in
             NavigationView {
                 CardDetailView(card: card)
@@ -135,6 +129,26 @@ struct DeckCardGridSection: View {
         } message: {
             Text("请先在主界面下载/加载卡片数据库，或下载先行卡数据。若你刚执行了一键切换，请手动检查并更新卡片数据库。")
         }
+    }
+
+    private var sortedItems: [DeckCardItem] {
+        DeckCardDisplaySorter.sortedItems(items)
+    }
+
+    private var columnCount: Int {
+        horizontalSizeClass == .regular ? 10 : 8
+    }
+
+    private var gridSpacing: CGFloat {
+        horizontalSizeClass == .regular ? 4 : 2
+    }
+
+    private var gridHorizontalPadding: CGFloat {
+        horizontalSizeClass == .regular ? 16 : 8
+    }
+
+    private var columns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: gridSpacing), count: columnCount)
     }
 
     private func isExtraDeckCard(_ cardId: Int) -> Bool {

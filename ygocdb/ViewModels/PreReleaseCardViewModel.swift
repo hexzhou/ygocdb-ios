@@ -56,6 +56,11 @@ class PreReleaseCardViewModel: ObservableObject {
             cards = try await PreReleaseCardService.shared.fetchCards(forceRefresh: forceRefresh)
             idChangelog = await CardIDChangelogService.shared.getCachedMappings()
         } catch {
+            if error.isTaskCancellation || Task.isCancelled {
+                isLoading = false
+                return
+            }
+
             idChangelog = await CardIDChangelogService.shared.getCachedMappings()
             errorMessage = error.localizedDescription
             showError = true
