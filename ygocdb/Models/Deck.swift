@@ -193,6 +193,7 @@ struct Deck: Codable, Identifiable {
     }
 
     /// 从卡组代码导入
+    @MainActor
     static func importFromCode(_ code: String, name: String) -> Deck? {
         let trimmedCode = code.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedCode.isEmpty else { return nil }
@@ -243,6 +244,7 @@ struct Deck: Codable, Identifiable {
 
     /// 解析 Base64 格式
     /// 结构: [Int32 main+extra 数量][Int32 side 数量][main+extra 卡密...][side 卡密...]
+    @MainActor
     private static func importFromBase64Code(_ code: String, name: String) -> Deck? {
         let compactCode = code.components(separatedBy: .whitespacesAndNewlines).joined()
         guard let data = Data(base64Encoded: compactCode), data.count >= 8 else {
@@ -262,13 +264,21 @@ struct Deck: Codable, Identifiable {
             return nil
         }
 
+        guard CardRepository.shared.isLoaded else {
+            return nil
+        }
+
         var deck = Deck(name: name)
 
         for _ in 0..<mainAndExtraCount {
             guard let cardId = readInt32LE(from: data, offset: &offset) else { return nil }
             guard cardId > 100 else { continue }
 
-            if isExtraDeckCard(cardId) {
+            guard let isExtraDeckCard = isExtraDeckCard(cardId) else {
+                return nil
+            }
+
+            if isExtraDeckCard {
                 deck.addCard(cardId: cardId, to: .extra)
             } else {
                 deck.addCard(cardId: cardId, to: .main)
@@ -320,9 +330,10 @@ struct Deck: Codable, Identifiable {
         return Int(Int32(bitPattern: b0 | b1 | b2 | b3))
     }
 
-    private static func isExtraDeckCard(_ cardId: Int) -> Bool {
+    @MainActor
+    private static func isExtraDeckCard(_ cardId: Int) -> Bool? {
         guard let card = CardRepository.shared.getCard(byId: cardId) else {
-            return false
+            return nil
         }
 
         let cardType = card.cardType
@@ -334,6 +345,7 @@ struct Deck: Codable, Identifiable {
 }
 
 /// 组卡器展示排序，尽量对齐 `ygopro2_unity2021` 的 `CardsManager.comparisonOfCard()`
+@MainActor
 enum DeckCardDisplaySorter {
     static func sortedItems(_ items: [DeckCardItem]) -> [DeckCardItem] {
         let metadataByCardId = metadataMap(for: items.map(\.cardId))

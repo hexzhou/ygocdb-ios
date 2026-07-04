@@ -177,7 +177,7 @@ actor ImageCache {
                 }
 
                 // 保存到磁盘
-                try? data.write(to: fileURL)
+                try? data.write(to: fileURL, options: .atomic)
 
                 // 存入内存缓存
                 memoryCache.setObject(image, forKey: cacheKey, cost: data.count)
@@ -219,7 +219,7 @@ actor ImageCache {
         var size: Int64 = 0
         
         if let enumerator = fileManager.enumerator(at: cacheDirectory, includingPropertiesForKeys: [.fileSizeKey]) {
-            for case let fileURL as URL in enumerator {
+            while let fileURL = enumerator.nextObject() as? URL {
                 if let fileSize = try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize {
                     size += Int64(fileSize)
                 }

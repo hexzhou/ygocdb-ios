@@ -277,11 +277,11 @@ private struct ProbabilityScenarioRow: View {
     private var probabilityColor: Color {
         guard let base = result?.base else { return .secondary }
         let prob = base.probability
-        if prob >= 0.8 {
+        if prob >= 80 {
             return .green
-        } else if prob >= 0.5 {
+        } else if prob >= 50 {
             return .orange
-        } else if prob >= 0.3 {
+        } else if prob >= 30 {
             return .yellow
         } else {
             return .red
@@ -320,7 +320,7 @@ private struct ProbabilityScenarioRow: View {
             if isCalculating {
                 ProgressView()
                     .scaleEffect(0.8)
-            } else if let error = result?.errorMessage {
+            } else if result?.errorMessage != nil {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundColor(.red)
             } else if let base = result?.base {
@@ -579,7 +579,7 @@ private struct ProbabilityScenarioEditor: View {
                     }
                     .id(conditionFieldId)
 
-                    Text("使用提示：a/b/c 对应分组顺序，支持 && || + - * / 以及括号。")
+                    Text("使用提示：a/b/c 对应分组顺序，支持 && || + - 以及括号。")
                         .font(.caption2)
                         .foregroundColor(.secondary)
 
@@ -1075,7 +1075,7 @@ private struct ConditionDetailSheet: View {
     }
 
     private func tokenize(_ expression: String) -> [String] {
-        let pattern = "\\s*([A-Za-z]+|\\d+|>=|<=|==|!=|&&|\\|\\||[-+*/()<>])\\s*"
+        let pattern = "\\s*([A-Za-z]+|\\d+|>=|<=|==|!=|&&|\\|\\||[-+()<>])\\s*"
         guard let regex = try? NSRegularExpression(pattern: pattern) else {
             return [expression]
         }
@@ -1197,10 +1197,6 @@ private struct ConditionDetailSheet: View {
             return "加"
         case "-":
             return "减"
-        case "*":
-            return "乘"
-        case "/":
-            return "除"
         default:
             return nil
         }

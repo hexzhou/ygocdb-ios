@@ -63,7 +63,7 @@ class BattleService {
     func saveSession(_ session: BattleSession) throws {
         let fileURL = battlesDirectory.appendingPathComponent("\(session.id.uuidString).json")
         let data = try encoder.encode(session)
-        try data.write(to: fileURL)
+        try data.write(to: fileURL, options: .atomic)
     }
 
     /// 删除对战会话

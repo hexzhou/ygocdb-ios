@@ -34,6 +34,8 @@ class DeckBattleViewModel: ObservableObject {
     // MARK: - 对战会话
     @Published var session: BattleSession
     @Published var isLoading = false
+    @Published var showError = false
+    @Published var errorMessage: String?
 
     /// 是否处于换side模式
     @Published var isSided = false
@@ -55,7 +57,12 @@ class DeckBattleViewModel: ObservableObject {
                 deckAName: deckA.name,
                 deckBName: deckB.name
             )
-            try? battleService.saveSession(self.session)
+            do {
+                try battleService.saveSession(self.session)
+            } catch {
+                errorMessage = "创建对战会话失败: \(error.localizedDescription)"
+                showError = true
+            }
         }
     }
 
@@ -176,7 +183,7 @@ class DeckBattleViewModel: ObservableObject {
     }
 
     /// 保存当前10轮为一条记录
-    func saveRecord(note: String = "") {
+    func saveRecord(note: String = "") -> Bool {
         let record = BattleRecord(
             deckAId: session.deckAId,
             deckBId: session.deckBId,
@@ -191,14 +198,31 @@ class DeckBattleViewModel: ObservableObject {
 
         session.records.append(record)
         session.updatedAt = Date()
-        try? battleService.saveSession(session)
+        do {
+            try battleService.saveSession(session)
+            return true
+        } catch {
+            session.records.removeAll { $0.id == record.id }
+            errorMessage = "保存记录失败: \(error.localizedDescription)"
+            showError = true
+            return false
+        }
     }
 
     /// 删除一条记录
     func deleteRecord(_ record: BattleRecord) {
+        let oldRecords = session.records
+        let oldUpdatedAt = session.updatedAt
         session.records.removeAll { $0.id == record.id }
         session.updatedAt = Date()
-        try? battleService.saveSession(session)
+        do {
+            try battleService.saveSession(session)
+        } catch {
+            session.records = oldRecords
+            session.updatedAt = oldUpdatedAt
+            errorMessage = "删除记录失败: \(error.localizedDescription)"
+            showError = true
+        }
     }
 
     // MARK: - 换side

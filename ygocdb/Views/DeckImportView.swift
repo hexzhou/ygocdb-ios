@@ -134,7 +134,7 @@ struct DeckImportView: View {
         }
 
         guard let deck = Deck.importFromCode(deckCode, name: deckName) else {
-            errorMessage = "卡组代码格式错误（支持 YDK 文本或 Base64）或无有效卡片"
+            errorMessage = "卡组代码格式错误、无有效卡片，或 Base64 导入前未加载卡片数据"
             showError = true
             return
         }

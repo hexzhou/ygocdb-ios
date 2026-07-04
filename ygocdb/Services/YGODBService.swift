@@ -33,11 +33,18 @@ actor YGODBService {
         logger.info("📥 正在获取 MD5: \(url.absoluteString)")
         
         let (data, response) = try await session.data(from: url)
-        
-        if let httpResponse = response as? HTTPURLResponse {
-            logger.info("📥 MD5 响应状态码: \(httpResponse.statusCode)")
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            logger.error("❌ MD5 响应无效")
+            throw YGODBError.invalidResponse
         }
-        
+
+        logger.info("📥 MD5 响应状态码: \(httpResponse.statusCode)")
+        guard httpResponse.statusCode == 200 else {
+            logger.error("❌ MD5 HTTP 错误: \(httpResponse.statusCode)")
+            throw YGODBError.downloadFailed
+        }
+
         guard let md5 = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) else {
             logger.error("❌ MD5 解析失败")
             throw YGODBError.invalidResponse
@@ -48,7 +55,7 @@ actor YGODBService {
     }
     
     /// 下载并解压全卡数据
-    func downloadCards(progressHandler: @escaping @Sendable (Double) -> Void) async throws -> CardDatabase {
+    func downloadCards(progressHandler: @escaping @MainActor @Sendable (Double) -> Void) async throws -> CardDatabase {
         let url = URL(string: "\(baseURL)/cards.zip")!
         logger.info("📥 开始下载: \(url.absoluteString)")
         
@@ -79,12 +86,12 @@ actor YGODBService {
             
             if contentLength > 0 && downloadedBytes % 50000 == 0 {
                 let progress = Double(downloadedBytes) / Double(contentLength)
-                progressHandler(min(progress, 1.0))
+                await progressHandler(min(progress, 1.0))
                 logger.debug("📥 下载进度: \(Int(progress * 100))% (\(downloadedBytes)/\(contentLength))")
             }
         }
         
-        progressHandler(1.0)
+        await progressHandler(1.0)
         logger.info("✅ 下载完成: \(downloadedData.count) 字节")
         
         // 解压 zip 文件并解析 JSON
@@ -148,7 +155,10 @@ actor YGODBService {
         
         while offset < zipData.count - 30 {
             // 检查本地文件头签名
-            let signature = zipData.subdata(in: offset..<offset+4).withUnsafeBytes { $0.load(as: UInt32.self) }
+            guard let signature = readUInt32LE(zipData, at: offset) else {
+                logger.error("❌ ZIP 文件头不完整")
+                return nil
+            }
             
             guard signature == 0x04034b50 else {
                 logger.info("📦 文件头结束于偏移: \(offset)")
@@ -156,20 +166,40 @@ actor YGODBService {
             }
             
             // 解析本地文件头
-            let compressionMethod = zipData.subdata(in: offset+8..<offset+10).withUnsafeBytes { $0.load(as: UInt16.self) }
-            let compressedSize = Int(zipData.subdata(in: offset+18..<offset+22).withUnsafeBytes { $0.load(as: UInt32.self) })
-            let uncompressedSize = Int(zipData.subdata(in: offset+22..<offset+26).withUnsafeBytes { $0.load(as: UInt32.self) })
-            let fileNameLength = Int(zipData.subdata(in: offset+26..<offset+28).withUnsafeBytes { $0.load(as: UInt16.self) })
-            let extraFieldLength = Int(zipData.subdata(in: offset+28..<offset+30).withUnsafeBytes { $0.load(as: UInt16.self) })
+            guard let generalPurposeFlag = readUInt16LE(zipData, at: offset + 6),
+                  let compressionMethod = readUInt16LE(zipData, at: offset + 8),
+                  let compressedSizeRaw = readUInt32LE(zipData, at: offset + 18),
+                  let uncompressedSizeRaw = readUInt32LE(zipData, at: offset + 22),
+                  let fileNameLengthRaw = readUInt16LE(zipData, at: offset + 26),
+                  let extraFieldLengthRaw = readUInt16LE(zipData, at: offset + 28) else {
+                logger.error("❌ ZIP 文件头不完整")
+                return nil
+            }
+
+            guard generalPurposeFlag & 0x0008 == 0 else {
+                logger.error("❌ 不支持带 data descriptor 的 ZIP 条目")
+                return nil
+            }
+
+            let compressedSize = Int(compressedSizeRaw)
+            let uncompressedSize = Int(uncompressedSizeRaw)
+            let fileNameLength = Int(fileNameLengthRaw)
+            let extraFieldLength = Int(extraFieldLengthRaw)
+            let fileNameOffset = offset + 30
+            let dataOffset = fileNameOffset + fileNameLength + extraFieldLength
+
+            guard fileNameOffset + fileNameLength <= zipData.count,
+                  dataOffset <= zipData.count,
+                  dataOffset + compressedSize <= zipData.count else {
+                logger.error("❌ ZIP 条目越界或数据不完整")
+                return nil
+            }
             
             // 获取文件名
-            let fileNameData = zipData.subdata(in: offset+30..<offset+30+fileNameLength)
+            let fileNameData = zipData.subdata(in: fileNameOffset..<fileNameOffset+fileNameLength)
             let fileName = String(data: fileNameData, encoding: .utf8) ?? ""
             
             logger.info("📦 文件[\(fileIndex)]: \(fileName), 压缩方法: \(compressionMethod), 压缩大小: \(compressedSize), 原始大小: \(uncompressedSize)")
-            
-            // 数据起始位置
-            let dataOffset = offset + 30 + fileNameLength + extraFieldLength
             
             // 如果是 cards.json，解压并返回
             if fileName == "cards.json" {
@@ -220,12 +250,25 @@ actor YGODBService {
         
         logger.info("📦 解压结果: \(result) 字节")
         
-        guard result > 0 else {
+        guard result == uncompressedSize else {
             logger.error("❌ 解压失败, 返回值: \(result)")
             throw YGODBError.decompressFailed
         }
         
         return uncompressedData
+    }
+
+    private func readUInt16LE(_ data: Data, at offset: Int) -> UInt16? {
+        guard offset >= 0, offset + 2 <= data.count else { return nil }
+        return UInt16(data[offset]) | (UInt16(data[offset + 1]) << 8)
+    }
+
+    private func readUInt32LE(_ data: Data, at offset: Int) -> UInt32? {
+        guard offset >= 0, offset + 4 <= data.count else { return nil }
+        return UInt32(data[offset]) |
+            (UInt32(data[offset + 1]) << 8) |
+            (UInt32(data[offset + 2]) << 16) |
+            (UInt32(data[offset + 3]) << 24)
     }
     
     // MARK: - 更新检查

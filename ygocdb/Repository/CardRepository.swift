@@ -123,7 +123,7 @@ class CardRepository: ObservableObject {
         let data = try encoder.encode(cardDatabase)
 
         let cardsURL = fileURL(for: cardsFileName)
-        try data.write(to: cardsURL)
+        try data.write(to: cardsURL, options: .atomic)
 
         let md5URL = fileURL(for: md5FileName)
         try md5.write(to: md5URL, atomically: true, encoding: .utf8)

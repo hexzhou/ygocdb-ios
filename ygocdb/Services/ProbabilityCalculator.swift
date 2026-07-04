@@ -277,8 +277,6 @@ enum ProbabilityCondition {
     enum ArithmeticOp: String {
         case add = "+"
         case sub = "-"
-        case mul = "*"
-        case div = "/"
     }
 
     indirect enum Node {
@@ -314,7 +312,7 @@ enum ProbabilityCondition {
     }
 
     private static func tokenize(_ expression: String) throws -> [String] {
-        let pattern = "\\s*([A-Za-z0-9_]+|>=|<=|==|!=|&&|\\|\\||[-+*/()<>])\\s*"
+        let pattern = "\\s*([A-Za-z0-9_]+|>=|<=|==|!=|&&|\\|\\||[-+()<>])\\s*"
         let regex = try NSRegularExpression(pattern: pattern)
         let nsExpression = expression as NSString
         let matches = regex.matches(in: expression, range: NSRange(location: 0, length: nsExpression.length))
@@ -429,7 +427,7 @@ enum ProbabilityCondition {
             parser.index = startIndex
             var tokens: [String] = []
             tokens.append(try parser.consume())
-            while let peek = parser.peek(), ["+", "-", "*", "/"].contains(peek) {
+            while let peek = parser.peek(), ["+", "-"].contains(peek) {
                 tokens.append(try parser.consume())
                 tokens.append(try parser.consume())
             }
@@ -439,7 +437,7 @@ enum ProbabilityCondition {
 
         var tokens: [String] = []
         tokens.append(try parser.consume())
-        while let peek = parser.peek(), ["+", "-", "*", "/"].contains(peek) {
+        while let peek = parser.peek(), ["+", "-"].contains(peek) {
             tokens.append(try parser.consume())
             tokens.append(try parser.consume())
         }
@@ -516,8 +514,6 @@ enum ProbabilityCondition {
                 switch op {
                 case .add: value += count
                 case .sub: value -= count
-                case .mul: value *= count
-                case .div: value = count == 0 ? value : value / count
                 }
             }
         }

@@ -163,9 +163,7 @@ class CardSearchViewModel: ObservableObject {
             logger.info("📥 开始下载卡片数据...")
             
             let cardDatabase = try await YGODBService.shared.downloadCards { [weak self] progress in
-                Task { @MainActor in
-                    self?.downloadProgress = progress
-                }
+                self?.downloadProgress = progress
             }
             
             logger.info("✅ 下载完成，共 \(cardDatabase.count) 张卡片")

@@ -112,8 +112,6 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
                 self.failedToLoad = false
             }
 
-            var lastError: Error?
-
             // 重试机制
             for attempt in 0...maxRetries {
                 do {
@@ -129,7 +127,6 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
                     }
                     return  // 成功加载，退出
                 } catch {
-                    lastError = error
                     if attempt < maxRetries {
                         // 等待后重试（指数退避：100ms, 200ms）
                         try? await Task.sleep(nanoseconds: UInt64(100_000_000 * (1 << attempt)))

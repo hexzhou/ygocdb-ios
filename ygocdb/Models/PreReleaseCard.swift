@@ -22,6 +22,25 @@ struct PreReleaseCard: Codable, Identifiable {
     // 可选字段
     let createCommit: String?
     let updateCommit: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, desc, overallString, picUrl, createTime, updateTime, created, updated, createCommit, updateCommit
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(Int.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        desc = try container.decode(String.self, forKey: .desc)
+        overallString = try container.decode(String.self, forKey: .overallString)
+        picUrl = try container.decode(String.self, forKey: .picUrl)
+        createTime = try container.decode(Int.self, forKey: .createTime)
+        updateTime = try container.decode(Int.self, forKey: .updateTime)
+        created = try container.decodeIfPresent(Bool.self, forKey: .created) ?? false
+        updated = try container.decodeIfPresent(Bool.self, forKey: .updated) ?? false
+        createCommit = try container.decodeIfPresent(String.self, forKey: .createCommit)
+        updateCommit = try container.decodeIfPresent(String.self, forKey: .updateCommit)
+    }
     
     /// 是否是新卡（新增或更新）
     var isNew: Bool {

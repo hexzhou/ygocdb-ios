@@ -257,7 +257,6 @@ struct DuelCalculatorView: View {
     }
 
     private func opsColumn(side: PlayerSide, inputBuffer: Binding<String>) -> some View {
-        let accent = side == .playerA ? DuelTheme.cyan : DuelTheme.magenta
         return VStack(spacing: 5) {
             ForEach(LPChangeType.allCases) { op in
                 Button {
@@ -635,4 +634,3 @@ struct LPHistorySheet: View {
         }
     }
 }
-

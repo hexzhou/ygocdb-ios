@@ -12,7 +12,7 @@ import os.log
 actor CardIDChangelogService {
     static let shared = CardIDChangelogService()
 
-    private let apiURL = "https://ygocdb.com/api/v0/idChangelog.txt"
+    private let apiURL = "https://ygocdb-mirror.moecube.com/api/v0/idChangelog.jsonp"
     private let cacheTTL: TimeInterval = 12 * 60 * 60
     private let session: URLSession
     private let logger = Logger(subsystem: "com.ygocdb", category: "CardIDChangelogService")
@@ -89,7 +89,7 @@ actor CardIDChangelogService {
             throw CardIDChangelogError.decodingFailed
         }
 
-        let mappings = parseMappings(from: text)
+        let mappings = try Self.parseMappings(from: text)
         cachedMappings = mappings
         lastFetchDate = Date()
         logger.info("✅ 获取到 \(mappings.count) 条 ID 变更记录")
@@ -142,7 +142,29 @@ actor CardIDChangelogService {
         logger.info("🗑️ ID 变更记录缓存已清除")
     }
 
-    private func parseMappings(from text: String) -> [Int: Int] {
+    static func parseMappings(from text: String) throws -> [Int: Int] {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let start = trimmed.firstIndex(of: "{"),
+           let end = trimmed.lastIndex(of: "}"),
+           start < end {
+            let json = Data(trimmed[start...end].utf8)
+            let rawMappings = try JSONDecoder().decode([String: Int].self, from: json)
+            var mappings: [Int: Int] = [:]
+            mappings.reserveCapacity(rawMappings.count)
+
+            for (oldIdText, newId) in rawMappings {
+                guard let oldId = Int(oldIdText),
+                      oldId > 0,
+                      newId > 0,
+                      oldId != newId else {
+                    continue
+                }
+                mappings[oldId] = newId
+            }
+
+            return mappings
+        }
+
         var mappings: [Int: Int] = [:]
         mappings.reserveCapacity(1024)
 

@@ -36,7 +36,7 @@ class DeckBuilderViewModel: ObservableObject {
 
     /// 创建新卡组
     func createDeck(name: String) {
-        var deck = Deck(name: name)
+        let deck = Deck(name: name)
         do {
             try deckService.saveDeck(deck)
             loadDecks()

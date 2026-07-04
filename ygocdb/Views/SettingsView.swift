@@ -422,9 +422,7 @@ struct SettingsView: View {
             let md5 = try await YGODBService.shared.fetchMD5()
             
             let cardDatabase = try await YGODBService.shared.downloadCards { progress in
-                Task { @MainActor in
-                    self.downloadProgress = progress
-                }
+                self.downloadProgress = progress
             }
             
             try await CardRepository.shared.saveCards(cardDatabase, md5: md5)

@@ -15,10 +15,13 @@ class DeckService {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
+    private var documentsDirectory: URL {
+        fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    }
+
     /// 卡组存储目录
     private var decksDirectory: URL {
-        let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        return documentsPath.appendingPathComponent("Decks", isDirectory: true)
+        documentsDirectory.appendingPathComponent("Decks", isDirectory: true)
     }
 
     private init() {
@@ -54,7 +57,7 @@ class DeckService {
     func saveDeck(_ deck: Deck) throws {
         let fileURL = decksDirectory.appendingPathComponent("\(deck.id.uuidString).json")
         let data = try encoder.encode(deck)
-        try data.write(to: fileURL)
+        try data.write(to: fileURL, options: .atomic)
     }
 
     /// 删除卡组
@@ -112,10 +115,6 @@ class DeckService {
             backup = DeckBackup(version: 0, decks: decks)
         }
 
-        if mode == .replace {
-            try deleteAllDecks()
-        }
-
         let existingIds = Set(loadAllDecks().map { $0.id })
         var added = 0
         var replaced = 0
@@ -126,9 +125,54 @@ class DeckService {
             } else {
                 added += 1
             }
-            try saveDeck(deck)
+        }
+
+        if mode == .replace {
+            let encodedDecks = try backup.decks.map { deck in
+                (deck: deck, data: try encoder.encode(deck))
+            }
+            try replaceDecks(with: encodedDecks)
+        } else {
+            for deck in backup.decks {
+                try saveDeck(deck)
+            }
         }
 
         return DeckBackupImportSummary(total: backup.decks.count, added: added, replaced: replaced)
+    }
+
+    private func replaceDecks(with decks: [(deck: Deck, data: Data)]) throws {
+        let importDirectory = documentsDirectory.appendingPathComponent("Decks.import-\(UUID().uuidString)", isDirectory: true)
+        let backupDirectory = documentsDirectory.appendingPathComponent("Decks.backup-\(UUID().uuidString)", isDirectory: true)
+
+        do {
+            try writeDeckFiles(decks, to: importDirectory)
+
+            if fileManager.fileExists(atPath: decksDirectory.path) {
+                try fileManager.moveItem(at: decksDirectory, to: backupDirectory)
+            }
+
+            do {
+                try fileManager.moveItem(at: importDirectory, to: decksDirectory)
+            } catch {
+                if fileManager.fileExists(atPath: backupDirectory.path) {
+                    try? fileManager.moveItem(at: backupDirectory, to: decksDirectory)
+                }
+                throw error
+            }
+
+            try? fileManager.removeItem(at: backupDirectory)
+        } catch {
+            try? fileManager.removeItem(at: importDirectory)
+            throw error
+        }
+    }
+
+    private func writeDeckFiles(_ decks: [(deck: Deck, data: Data)], to directory: URL) throws {
+        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        for item in decks {
+            let fileURL = directory.appendingPathComponent("\(item.deck.id.uuidString).json")
+            try item.data.write(to: fileURL, options: .atomic)
+        }
     }
 }

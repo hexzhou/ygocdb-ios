@@ -105,14 +105,14 @@ struct CardQA: Codable, Identifiable {
     
     /// 清理 HTML 标签的问题
     var cleanQuestion: String {
-        question.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-            .replacingOccurrences(of: "<br>", with: "\n")
+        question.replacingOccurrences(of: "<br\\s*/?>", with: "\n", options: .regularExpression)
+            .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
     }
     
     /// 清理 HTML 标签的答案
     var cleanAnswer: String {
-        answer.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-            .replacingOccurrences(of: "<br>", with: "\n")
+        answer.replacingOccurrences(of: "<br\\s*/?>", with: "\n", options: .regularExpression)
+            .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
     }
 }
 

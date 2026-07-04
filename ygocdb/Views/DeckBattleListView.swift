@@ -12,6 +12,8 @@ struct DeckBattleListView: View {
     @StateObject private var viewModel = DeckBuilderViewModel()
     @State private var sessions: [BattleSession] = []
     @State private var showCreateSession = false
+    @State private var showError = false
+    @State private var errorMessage: String?
 
     private let battleService = BattleService.shared
 
@@ -68,6 +70,11 @@ struct DeckBattleListView: View {
                 createSession(deckA: deckA, deckB: deckB)
             }
         }
+        .alert("错误", isPresented: $showError) {
+            Button("确定", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "操作失败")
+        }
         .onAppear {
             loadSessions()
         }
@@ -84,13 +91,23 @@ struct DeckBattleListView: View {
             deckAName: deckA.name,
             deckBName: deckB.name
         )
-        try? battleService.saveSession(session)
-        loadSessions()
+        do {
+            try battleService.saveSession(session)
+            loadSessions()
+        } catch {
+            errorMessage = "创建对战会话失败: \(error.localizedDescription)"
+            showError = true
+        }
     }
 
     private func deleteSession(_ session: BattleSession) {
-        try? battleService.deleteSession(session)
-        sessions.removeAll { $0.id == session.id }
+        do {
+            try battleService.deleteSession(session)
+            sessions.removeAll { $0.id == session.id }
+        } catch {
+            errorMessage = "删除对战会话失败: \(error.localizedDescription)"
+            showError = true
+        }
     }
 }
 

@@ -92,13 +92,19 @@ struct DeckBattleView: View {
         .alert("保存记录", isPresented: $showSaveConfirm) {
             TextField("备注（可选）", text: $noteText)
             Button("保存") {
-                viewModel.saveRecord(note: noteText)
-                noteText = ""
-                showToast("已保存 \(viewModel.currentMarkedCount) 局记录")
+                if viewModel.saveRecord(note: noteText) {
+                    noteText = ""
+                    showToast("已保存 \(viewModel.currentMarkedCount) 局记录")
+                }
             }
             Button("取消", role: .cancel) {}
         } message: {
             Text("已标记 \(viewModel.currentMarkedCount) / \(viewModel.rounds.count) 局结果")
+        }
+        .alert("错误", isPresented: $viewModel.showError) {
+            Button("确定", role: .cancel) {}
+        } message: {
+            Text(viewModel.errorMessage ?? "操作失败")
         }
         .overlay(
             VStack {
