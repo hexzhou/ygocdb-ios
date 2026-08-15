@@ -50,12 +50,19 @@ struct CompactCardRow: View {
             // 卡片信息
             VStack(alignment: .leading, spacing: 4) {
                 Text(settings.getDisplayName(for: card))
-                    .font(.headline)
+                    .font(settings.cardTitleFont())
                     .lineLimit(1)
+
+                ForEach(settings.getAdditionalDisplayNames(for: card), id: \.self) { name in
+                    Text(name)
+                        .font(settings.cardCaptionFont())
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
 
                 // 卡片信息（类型、星级、攻防等）
                 Text(card.typesDisplay)
-                    .font(.caption)
+                    .font(settings.cardCaptionFont())
                     .foregroundColor(.secondary)
                     .lineLimit(2)
             }
@@ -98,21 +105,28 @@ struct DetailedCardRow: View {
                     // 卡名
                     HStack {
                         Text(settings.getDisplayName(for: card))
-                            .font(.headline)
+                            .font(settings.cardTitleFont())
                             .lineLimit(1)
 
                         Spacer()
 
                         // 卡密
                         Text(String(format: "%08d", card.id))
-                            .font(.caption)
+                            .font(settings.cardCaptionFont())
                             .foregroundColor(.secondary)
                             .monospacedDigit()
                     }
 
+                    ForEach(settings.getAdditionalDisplayNames(for: card), id: \.self) { name in
+                        Text(name)
+                            .font(settings.cardCaptionFont())
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+
                     // 类型、星级、攻防等
                     Text(card.typesDisplay)
-                        .font(.caption)
+                        .font(settings.cardCaptionFont())
                         .foregroundColor(.blue)
                 }
             }
@@ -121,11 +135,11 @@ struct DetailedCardRow: View {
             if !card.pdescDisplay.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("【灵摆效果】")
-                        .font(.subheadline)
+                        .font(settings.cardContentFont(weight: .medium))
                         .fontWeight(.medium)
                         .foregroundColor(.teal)
                     Text(card.pdescDisplay)
-                        .font(.subheadline)
+                        .font(settings.cardContentFont())
                         .foregroundColor(.primary.opacity(0.85))
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -135,7 +149,7 @@ struct DetailedCardRow: View {
 
             // 卡片效果
             Text(card.descDisplay)
-                .font(.subheadline)
+                .font(settings.cardContentFont())
                 .foregroundColor(.primary.opacity(0.8))
                 .lineLimit(nil)
                 .fixedSize(horizontal: false, vertical: true)

@@ -25,6 +25,7 @@ struct CardDetailView: View {
     private var hasOnlineSections: Bool {
         settings.networkMode == .online && (
             viewModel.isLoading ||
+            viewModel.hasAvailability ||
             viewModel.hasSupplement ||
             viewModel.hasFAQs ||
             viewModel.hasJPPacks ||
@@ -48,10 +49,10 @@ struct CardDetailView: View {
                     if !card.pdescDisplay.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("灵摆效果")
-                                .font(.headline)
+                                .font(settings.cardTitleFont())
 
                             Text(card.pdescDisplay)
-                                .font(.body)
+                                .font(settings.cardContentFont())
                                 .textSelection(.enabled)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -62,10 +63,10 @@ struct CardDetailView: View {
                     // 卡片效果/描述
                     VStack(alignment: .leading, spacing: 8) {
                         Text((card.data?.isMonster ?? false) ? "效果/描述" : "效果")
-                            .font(.headline)
+                            .font(settings.cardTitleFont())
 
                         Text(card.descDisplay)
-                            .font(.body)
+                            .font(settings.cardContentFont())
                             .textSelection(.enabled)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -82,6 +83,12 @@ struct CardDetailView: View {
                                     .foregroundColor(.secondary)
                             }
                             .frame(maxWidth: .infinity)
+                            Divider()
+                        }
+
+                        // OCG/TCG 禁限卡表
+                        if viewModel.hasAvailability, let availability = viewModel.cardDetail?.avail {
+                            AvailabilitySection(availability: availability)
                             Divider()
                         }
 
@@ -232,7 +239,7 @@ struct CardDetailView: View {
     private var cardInfoSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(settings.getDisplayName(for: card))
-                .font(.title3)
+                .font(settings.cardTitleFont(weight: .bold))
                 .fontWeight(.bold)
                 .multilineTextAlignment(.leading)
                 .textSelection(.enabled)
@@ -240,7 +247,7 @@ struct CardDetailView: View {
 
             if let jpName = card.jpName {
                 Text(jpName)
-                    .font(.caption)
+                    .font(settings.cardCaptionFont())
                     .foregroundColor(.secondary)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
@@ -248,14 +255,14 @@ struct CardDetailView: View {
 
             if let enName = card.enName {
                 Text(enName)
-                    .font(.caption)
+                    .font(settings.cardCaptionFont())
                     .foregroundColor(.secondary)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             Text(card.typesDisplay)
-                .font(.subheadline)
+                .font(settings.cardContentFont())
                 .foregroundColor(.blue)
                 .textSelection(.enabled)
                 .multilineTextAlignment(.leading)
@@ -275,12 +282,12 @@ struct CardDetailView: View {
     private func metaRow(label: String, value: String, monospaced: Bool = false) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(label)
-                .font(.caption)
+                .font(settings.cardCaptionFont())
                 .foregroundColor(.secondary)
                 .frame(width: 32, alignment: .leading)
 
             Text(value)
-                .font(monospaced ? .system(.caption, design: .monospaced) : .caption)
+                .font(monospaced ? .system(size: CGFloat(max(settings.cardContentFontSize - 2, 10)), design: .monospaced) : settings.cardCaptionFont())
                 .foregroundColor(.secondary)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -341,6 +348,57 @@ struct CardDetailView: View {
             withAnimation {
                 toastMessage = nil
             }
+        }
+    }
+}
+
+/// OCG/TCG 禁限卡表区域视图
+struct AvailabilitySection: View {
+    let availability: CardAvailability
+
+    var body: some View {
+        HStack(spacing: 16) {
+            if let status = availability.jaStatus {
+                restrictionItem(environment: "OCG", status: status)
+            }
+
+            if let status = availability.enStatus {
+                restrictionItem(environment: "TCG", status: status)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func restrictionItem(environment: String, status: CardLimitStatus) -> some View {
+        HStack(spacing: 6) {
+            Text(environment)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .lineLimit(1)
+
+            Text(status.displayName)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(statusColor(for: status))
+                .lineLimit(1)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(statusColor(for: status).opacity(0.12))
+                .clipShape(Capsule())
+        }
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private func statusColor(for status: CardLimitStatus) -> Color {
+        switch status {
+        case .forbidden:
+            return .red
+        case .limited:
+            return .orange
+        case .semiLimited:
+            return .blue
         }
     }
 }

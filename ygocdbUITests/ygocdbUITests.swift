@@ -32,6 +32,25 @@ final class ygocdbUITests: XCTestCase {
     }
 
     @MainActor
+    func testSearchToolbarEntriesAreIndependent() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        let limitListButton = app.buttons["禁卡表"]
+        let preReleaseButton = app.buttons["先行卡"]
+        XCTAssertTrue(limitListButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(preReleaseButton.exists)
+
+        limitListButton.tap()
+        XCTAssertTrue(app.navigationBars["禁卡表"].waitForExistence(timeout: 5))
+        app.buttons["关闭"].tap()
+
+        XCTAssertTrue(preReleaseButton.waitForExistence(timeout: 5))
+        preReleaseButton.tap()
+        XCTAssertTrue(app.navigationBars["先行卡"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testLaunchPerformance() throws {
         // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {

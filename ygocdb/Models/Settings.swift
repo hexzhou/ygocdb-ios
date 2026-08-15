@@ -188,6 +188,12 @@ class AppSettings: ObservableObject {
     @AppStorage("cardListStyle") var cardListStyle: CardListStyle = .compact
     @AppStorage("detailImageQuality") var detailImageQuality: DetailImageQuality = .high
     @AppStorage("appearanceMode") var appearanceMode: AppearanceMode = .system
+    @AppStorage("cardTitleFontSize") var cardTitleFontSize: Double = 17 {
+        willSet { objectWillChange.send() }
+    }
+    @AppStorage("cardContentFontSize") var cardContentFontSize: Double = 15 {
+        willSet { objectWillChange.send() }
+    }
     
     // 网络和更新设置
     @AppStorage("networkMode") var networkMode: NetworkMode = .online
@@ -224,6 +230,33 @@ class AppSettings: ObservableObject {
     /// 获取卡片显示名称
     func getDisplayName(for card: Card) -> String {
         cardNameSource.getName(from: card)
+    }
+
+    /// 获取主名称之外的多语言名称
+    func getAdditionalDisplayNames(for card: Card) -> [String] {
+        let primaryName = getDisplayName(for: card)
+        var seen = Set([primaryName])
+
+        return [card.jpName, card.enName].compactMap { name in
+            guard let name = name?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !name.isEmpty,
+                  seen.insert(name).inserted else {
+                return nil
+            }
+            return name
+        }
+    }
+
+    func cardTitleFont(weight: Font.Weight = .semibold) -> Font {
+        .system(size: CGFloat(cardTitleFontSize), weight: weight)
+    }
+
+    func cardContentFont(weight: Font.Weight = .regular) -> Font {
+        .system(size: CGFloat(cardContentFontSize), weight: weight)
+    }
+
+    func cardCaptionFont(weight: Font.Weight = .regular) -> Font {
+        .system(size: CGFloat(max(cardContentFontSize - 2, 10)), weight: weight)
     }
     
     /// 获取卡图 URL

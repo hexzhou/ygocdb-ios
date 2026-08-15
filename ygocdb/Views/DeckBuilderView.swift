@@ -12,6 +12,7 @@ import UIKit
 struct DeckBuilderView: View {
     let deck: Deck
     @StateObject private var viewModel = DeckBuilderViewModel()
+    @StateObject private var limitCheckViewModel = DeckLimitCheckViewModel()
     @StateObject private var searchViewModel = CardSearchViewModel()
     @StateObject private var filter = CardFilter()
     @State private var showFilter = false
@@ -28,6 +29,7 @@ struct DeckBuilderView: View {
     @State private var idChangelog: [Int: Int] = [:]
     @State private var loadingChangelog = false
     @State private var showConvertAlert = false
+    @State private var showLimitCheck = false
 
     enum DisplayMode {
         case list
@@ -138,6 +140,15 @@ struct DeckBuilderView: View {
                 isActive: $showSideboardStrategies
             ) { EmptyView() }
         )
+        .background(
+            NavigationLink(
+                destination: DeckLimitCheckView(
+                    deck: currentDeck,
+                    viewModel: limitCheckViewModel
+                ),
+                isActive: $showLimitCheck
+            ) { EmptyView() }
+        )
         .sheet(isPresented: $showAddCard) {
             if #available(iOS 16.0, *) {
                 DeckCardSearchView(
@@ -193,11 +204,20 @@ struct DeckBuilderView: View {
         .task(id: deck.id) {
             await loadIDChangelogIfNeeded()
         }
+        .task(id: deck.id) {
+            await limitCheckViewModel.load()
+        }
     }
 
     // 列表视图
     private var deckListView: some View {
         List {
+            Section {
+                limitCheckSummaryButton
+            }
+            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+            .listRowBackground(Color.clear)
+
             // 主卡组
             if !currentDeck.mainDeckCards.isEmpty {
                 Section {
@@ -317,6 +337,9 @@ struct DeckBuilderView: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                limitCheckSummaryButton
+                    .padding(.horizontal)
+
                 // 主卡组
                 if !deck.mainDeckCards.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
@@ -434,6 +457,20 @@ struct DeckBuilderView: View {
             }
             .padding(.vertical)
         }
+    }
+
+    private var limitCheckSummaryButton: some View {
+        Button {
+            showLimitCheck = true
+        } label: {
+            DeckLimitCheckSummaryView(
+                environment: limitCheckViewModel.selectedEnvironment,
+                evaluation: limitCheckViewModel.currentEvaluation(for: currentDeck),
+                isLoading: limitCheckViewModel.isLoading,
+                errorMessage: limitCheckViewModel.errorMessage
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     /// 按卡片ID分组

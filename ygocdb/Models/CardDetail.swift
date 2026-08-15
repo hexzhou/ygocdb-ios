@@ -41,7 +41,7 @@ struct CardFullDetail: Codable {
     let jppacks: [CardPack]?
     /// 英文卡包发售信息
     let enpacks: [CardPack]?
-    /// 可用性信息
+    /// OCG/TCG 禁限卡表信息
     let avail: CardAvailability?
     
     enum CodingKeys: String, CodingKey {
@@ -130,8 +130,38 @@ struct CardPack: Codable, Identifiable {
     var id: String { pid }
 }
 
-/// 卡片可用性信息
+/// 禁限状态（数值表示在对应环境中最多可投入的张数）
+enum CardLimitStatus: Int, Codable {
+    case forbidden = 0
+    case limited = 1
+    case semiLimited = 2
+
+    var displayName: String {
+        switch self {
+        case .forbidden:
+            return "禁止卡"
+        case .limited:
+            return "限制卡"
+        case .semiLimited:
+            return "准限制卡"
+        }
+    }
+}
+
+/// OCG（ja）与 TCG（en）环境的禁限卡表信息
 struct CardAvailability: Codable {
-    let ocg: Int?
-    let tcg: Int?
+    let ja: Int?
+    let en: Int?
+
+    var jaStatus: CardLimitStatus? {
+        ja.flatMap(CardLimitStatus.init(rawValue:))
+    }
+
+    var enStatus: CardLimitStatus? {
+        en.flatMap(CardLimitStatus.init(rawValue:))
+    }
+
+    var hasRestriction: Bool {
+        jaStatus != nil || enStatus != nil
+    }
 }

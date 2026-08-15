@@ -36,6 +36,7 @@ struct SettingsView: View {
                 cardDisplaySection
                 imageQualitySection
                 listStyleSection
+                fontSizeSection
                 appearanceSection
                 dataManagementSection
                 deckBackupSection
@@ -246,6 +247,50 @@ struct SettingsView: View {
         }
     }
 
+    private var fontSizeSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("标题")
+                    Spacer()
+                    Text("\(Int(settings.cardTitleFontSize)) pt")
+                        .foregroundColor(.secondary)
+                        .monospacedDigit()
+                }
+                Slider(value: $settings.cardTitleFontSize, in: 14...26, step: 1)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("内容")
+                    Spacer()
+                    Text("\(Int(settings.cardContentFontSize)) pt")
+                        .foregroundColor(.secondary)
+                        .monospacedDigit()
+                }
+                Slider(value: $settings.cardContentFontSize, in: 12...22, step: 1)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("青眼白龙")
+                    .font(settings.cardTitleFont(weight: .bold))
+
+                Text("青眼の白龍")
+                    .font(settings.cardCaptionFont())
+                    .foregroundColor(.secondary)
+
+                Text("以高攻击力著称的传说之龙。任何对手都能粉碎，其破坏力不可估量。")
+                    .font(settings.cardContentFont())
+                    .foregroundColor(.primary.opacity(0.85))
+            }
+            .padding(.vertical, 4)
+        } header: {
+            Text("字体大小")
+        } footer: {
+            Text("调整主搜索卡片和详情页的卡名、效果文字大小")
+        }
+    }
+
     private var appearanceSection: some View {
         Section {
             Picker("主题模式", selection: $settings.appearanceMode) {
@@ -322,7 +367,7 @@ struct SettingsView: View {
             HStack {
                 Text("版本")
                 Spacer()
-                Text("3.0")
+                Text("3.1")
                     .foregroundColor(.secondary)
             }
 

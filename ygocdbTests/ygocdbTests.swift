@@ -79,6 +79,47 @@ struct ygocdbTests {
         #expect(card.updated == false)
     }
 
+    @Test func cardDetailDecodesOCGAndTCGRestrictions() throws {
+        let json = """
+        {
+            "cid": 123,
+            "id": 456,
+            "avail": {
+                "ja": 1,
+                "en": 0
+            }
+        }
+        """.data(using: .utf8)!
+
+        let detail = try JSONDecoder().decode(CardFullDetail.self, from: json)
+
+        #expect(detail.avail?.ja == 1)
+        #expect(detail.avail?.en == 0)
+        #expect(detail.avail?.jaStatus == .limited)
+        #expect(detail.avail?.enStatus == .forbidden)
+        #expect(detail.avail?.jaStatus?.displayName == "限制卡")
+        #expect(detail.avail?.enStatus?.displayName == "禁止卡")
+    }
+
+    @Test func cardAvailabilityMapsSemiLimitedAndMissingEnvironment() throws {
+        let json = """
+        {
+            "cid": 123,
+            "id": 456,
+            "avail": {
+                "ja": 2
+            }
+        }
+        """.data(using: .utf8)!
+
+        let detail = try JSONDecoder().decode(CardFullDetail.self, from: json)
+
+        #expect(detail.avail?.jaStatus == .semiLimited)
+        #expect(detail.avail?.jaStatus?.displayName == "准限制卡")
+        #expect(detail.avail?.en == nil)
+        #expect(detail.avail?.enStatus == nil)
+    }
+
     @Test func idChangelogParsesMirrorJSONPFormat() throws {
         let mappings = try CardIDChangelogService.parseMappings(
             from: "/**/ typeof callback === 'function' && callback({\"100200002\":23923758,\"bad\":1});"

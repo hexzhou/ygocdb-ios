@@ -65,6 +65,7 @@ class CardRepository: ObservableObject {
     @Published private(set) var cards: [Card] = []
     @Published private(set) var isLoaded: Bool = false
     private var cardById: [Int: Card] = [:]
+    private var cardByCID: [Int: Card] = [:]
 
     private let fileManager = FileManager.default
     private let cardsFileName = "cards.json"
@@ -94,6 +95,7 @@ class CardRepository: ObservableObject {
             cards = []
             searchIndexes = []
             cardById = [:]
+            cardByCID = [:]
             isLoaded = false
             return
         }
@@ -107,12 +109,18 @@ class CardRepository: ObservableObject {
         // 构建搜索索引（预计算小写字符串）
         searchIndexes = cards.map { CardSearchIndex(from: $0) }
         var dict: [Int: Card] = [:]
+        var cidDict: [Int: Card] = [:]
         dict.reserveCapacity(cards.count)
-        for card in cards where card.id > 0 {
-            // 数据源可能存在重复 id（例如 id=0 或异常条目）；这里用“后者覆盖前者”避免崩溃。
-            dict[card.id] = card
+        cidDict.reserveCapacity(cards.count)
+        for card in cards {
+            if card.id > 0 {
+                // 数据源可能存在重复 id（例如 id=0 或异常条目）；这里用“后者覆盖前者”避免崩溃。
+                dict[card.id] = card
+            }
+            cidDict[card.cid] = card
         }
         cardById = dict
+        cardByCID = cidDict
 
         isLoaded = true
     }
@@ -133,11 +141,17 @@ class CardRepository: ObservableObject {
         // 构建搜索索引（预计算小写字符串）
         searchIndexes = cards.map { CardSearchIndex(from: $0) }
         var dict: [Int: Card] = [:]
+        var cidDict: [Int: Card] = [:]
         dict.reserveCapacity(cards.count)
-        for card in cards where card.id > 0 {
-            dict[card.id] = card
+        cidDict.reserveCapacity(cards.count)
+        for card in cards {
+            if card.id > 0 {
+                dict[card.id] = card
+            }
+            cidDict[card.cid] = card
         }
         cardById = dict
+        cardByCID = cidDict
 
         isLoaded = true
     }
@@ -169,6 +183,7 @@ class CardRepository: ObservableObject {
         cards = []
         searchIndexes = []
         cardById = [:]
+        cardByCID = [:]
         isLoaded = false
     }
     
@@ -198,6 +213,11 @@ class CardRepository: ObservableObject {
     /// 根据卡片ID获取卡片
     func getCard(byId cardId: Int) -> Card? {
         cardById[cardId]
+    }
+
+    /// 根据官网数据库 CID 获取卡片（禁限卡表使用 CID 作为键）。
+    func getCard(byCID cid: Int) -> Card? {
+        cardByCID[cid]
     }
 
     /// 搜索卡片（优化版本：异步后台搜索，使用预计算的索引）

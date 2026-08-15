@@ -71,6 +71,11 @@ class CardDetailViewModel: ObservableObject {
     var hasSupplement: Bool {
         !(cardDetail?.supplement?.cleanText.isEmpty ?? true)
     }
+
+    /// 是否有 OCG/TCG 禁限卡表信息
+    var hasAvailability: Bool {
+        cardDetail?.avail?.hasRestriction ?? false
+    }
     
     /// 是否有日版发售信息
     var hasJPPacks: Bool {

@@ -13,6 +13,7 @@ struct SearchView: View {
     @StateObject private var filter = CardFilter()
     @State private var showSettings = false
     @State private var showPreReleaseCards = false
+    @State private var showLimitList = false
     @State private var showFilter = false
     
     var body: some View {
@@ -32,6 +33,15 @@ struct SearchView: View {
             .navigationTitle("游戏王查卡器")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        showLimitList = true
+                    } label: {
+                        Image(systemName: "list.bullet.rectangle")
+                    }
+                    .accessibilityLabel("禁卡表")
+                }
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 12) {
                         // 先行卡按钮
@@ -41,6 +51,7 @@ struct SearchView: View {
                             Image(systemName: "sparkles")
                                 .foregroundColor(.orange)
                         }
+                        .accessibilityLabel("先行卡")
 
                         // 设置按钮
                         Button {
@@ -53,6 +64,9 @@ struct SearchView: View {
             }
             .sheet(isPresented: $showPreReleaseCards) {
                 PreReleaseCardListView()
+            }
+            .sheet(isPresented: $showLimitList) {
+                LimitListView()
             }
             .sheet(isPresented: $showFilter) {
                 CardFilterView(filter: filter)
